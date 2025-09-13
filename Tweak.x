@@ -38,13 +38,15 @@ static void initializeValidUDIDs() {
             @"MDAwMDgxMjAtMDAwNDM0QzExRTk4MjAxRQ==", // Base64编码的UDID 1
             @"MDAwMDgxMjAtMDAxRTY0RDgzRUEwQzAxRQ==",
 
+@"MDAwMDgxMjAtMDAxRTNDODYyRTk4QzAxRQ==",
+
+@"MDAwMDgxMTAtMDAxQTc0NTIwQzQyNDAxRQ==",
+
 @"MDAwMDgxMjAtMDAxNDE4OTgzQzk4MjAxRQ==",
 
 @"MDAwMDgxMjAtMDAxMTA5NTYwQUUwQzAxRQ==",
 
 @"MDAwMDgxMjAtMDAwQTQxMDAzNDIyMjAxRQ==",
-
-@"MDAwMDgxMjAtMDAxRTNDODYyRTk4QzAxRQ==",
 
 @"MDAwMDgxMjAtMDAwMjA5OUMzQzdCQzAxRQ==",
 
