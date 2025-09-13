@@ -1,5 +1,5 @@
 Package: com.junzai.screenshotwatermark
-Name: ScreenshotWatermark
+Name: 全局水印
 Version: 1.0
 Architecture: iphoneos-arm
 Description: 全局截图添加水印
