@@ -5,6 +5,7 @@
 #import <notify.h>
 #import <dlfcn.h>
 #import <sys/sysctl.h>
+#import <CoreFoundation/CoreFoundation.h>
 
 // 设置标识符
 #define PREFS_IDENTIFIER "com.screenshotwatermark.preferences"
@@ -16,159 +17,165 @@
 
 // 最大重试次数
 #define MAX_RETRY_COUNT 3
-// 重试间隔
+// 重试间隔（秒）
 #define RETRY_INTERVAL 1.0
 
 // 设备验证标志
 static BOOL isDeviceAuthorized = NO;
 
-// Base64编码的UDID列表
+// Base64编码的UDID列表（保持你原有的白名单）
 static NSArray *validBase64UDIDs = nil;
 
-#pragma mark - Base64编码函数
+#pragma mark - helpers
+
 static NSString* base64EncodeString(NSString *string) {
+    if (!string) return nil;
     NSData *data = [string dataUsingEncoding:NSUTF8StringEncoding];
     return [data base64EncodedStringWithOptions:0];
 }
 
-#pragma mark - 初始化Base64 UDID列表
 static void initializeValidUDIDs() {
     if (!validBase64UDIDs) {
         validBase64UDIDs = @[
-            @"MDAwMDgxMjAtMDAxQzU0OEEzNkEwQzAxRQ==", // Base64编码的UDID 1
+            @"MDAwMDgxMjAtMDAxQzU0OEEzNkEwQzAxRQ==",
             @"MDAwMDgxMjAtMDAxRTY0RDgzRUEwQzAxRQ==",
-
-@"MDAwMDgxMjAtMDAxNDE4OTgzQzk4MjAxRQ==",
-
-@"MDAwMDgxMjAtMDAxMTA5NTYwQUUwQzAxRQ==",
-
-@"MDAwMDgxMjAtMDAwQTQxMDAzNDIyMjAxRQ==",
-
-@"MDAwMDgxMjAtMDAxRTNDODYyRTk4QzAxRQ==",
-
-@"MDAwMDgxMjAtMDAwMjA5OUMzQzdCQzAxRQ==",
-
-@"MDAwMDgxMjAtMDAxQzFDMzAxRTY4MjAxRQ==",
-
-@"MDAwMDgxMTAtMDAwODQ5NEEzQ0I5ODAxRQ==",
-
-@"MDAwMDgxMjAtMDAxQzYwQzIzNjEzQzAxRQ==",
-
-@"MDAwMDgxMTAtMDAxQTU4NTAyMjIxODAxRQ==",
-
-@"MDAwMDgxMTAtMDAxQzQ1QTQxNEExNDAxRQ==",
-
-@"MDAwMDgwMzAtMDAwMzU4OTIxNERBNDAyRQ==",
-
-@"MDAwMDgxMjAtMDAxNjE0NjkyMTQ3NDAxRQ==",
-
-@"MDAwMDgxMjAtMDAxQTA5OTQyRTk4MjAxRQ==",
-
-@"MDAwMDgxMDEtMDAxQzRDMkMzQTgyMDAxRQ==",
-
-@"MDAwMDgxMDEtMDAwMDU4NkEwMTY4MDAxRQ==",
-
-@"MDAwMDgxMjAtMDAwMjREQzEwQUYzQzAxRQ==",
-
-@"MDAwMDgxMjAtMDAwQzU1MDYyMjQ0QzAxRQ==",
-
-@"MDAwMDgxMjAtMDAwMTU1OTQyRUUwMjAxRQ==",
-
-@"MDAwMDgxMjAtMDAwMTcxMTEyMUYwMjAxRQ==",
-
-@"MDAwMDgxMjAtMDAwMjA5OUMzQzdCQzAxRQ==",
-
-@"MDAwMDgxMjAtMDAxNDJEMDYyMjY4MjAxRQ==",
-
-@"MDAwMDgxMjAtMDAwNDM0QzExRTk4MjAxRQ==",
-
-@"MDAwMDgxMjAtMDAxQzYwQzIzNjEzQzAxRQ==",
-
-@"MDAwMDgxMDEtMDAxQzRDMkMzQTgyMDAxRQ==",
-
-@"MDAwMDgxMjAtMDAwMjREQzEwQUYzQzAxRQ==",
-
-@"MDAwMDgxMDEtMDAwQTY5NjIyRTMxMDAzQQ==",
-
-@"MDAwMDgxMDEtMDAwMDU4NkEwMTY4MDAxRQ==",
-
-@"MDAwMDgxMjAtMDAxRTJDQTIzNkRCNDAxRQ==",
-
-@"MDAwMDgxMDEtMDAwMDU4NkEwMTY4MDAxRQ==",
-
-@"MDAwMDgxMDEtMDAwQTY5NjIyRTMxMDAzQQ==", 
-
-@"MDAwMDgxMTAtMDAxNDUwNkMzNDgyODAxRQ==",
-
-@"MDAwMDgxMjAtMDAxRTJDQTIzNkRCNDAxRQ==",
-
-@"MDAwMDgxMjAtMDAxNjM1QzgzQTgwMjAxRQ==",
-
-@"MDAwMDgxMTAtMDAwNDcxMzkxNDgyNDAxRQ==",
-
-@"MDAwMDgxMjAtMDAwNjI0NTAwQzdCQzAxRQ==",
-
-@"MDAwMDgxMjAtMDAxRTJDQTIzNkRCNDAxRQ==",
+            @"MDAwMDgxMjAtMDAxNDE4OTgzQzk4MjAxRQ==",
+            @"MDAwMDgxMjAtMDAxMTA5NTYwQUUwQzAxRQ==",
+            @"MDAwMDgxMjAtMDAwQTQxMDAzNDIyMjAxRQ==",
+            @"MDAwMDgxMjAtMDAxRTNDODYyRTk4QzAxRQ==",
+            @"MDAwMDgxMjAtMDAwMjA5OUMzQzdCQzAxRQ==",
+            @"MDAwMDgxMjAtMDAxQzFDMzAxRTY4MjAxRQ==",
+            @"MDAwMDgxMTAtMDAwODQ5NEEzQ0I5ODAxRQ==",
+            @"MDAwMDgxMjAtMDAxQzYwQzIzNjEzQzAxRQ==",
+            @"MDAwMDgxMTAtMDAxQTU4NTAyMjIxODAxRQ==",
+            @"MDAwMDgxMTAtMDAxQzQ1QTQxNEExNDAxRQ==",
+            @"MDAwMDgwMzAtMDAwMzU4OTIxNERBNDAyRQ==",
+            @"MDAwMDgxMjAtMDAxNjE0NjkyMTQ3NDAxRQ==",
+            @"MDAwMDgxMjAtMDAxQTA5OTQyRTk4MjAxRQ==",
+            @"MDAwMDgxMDEtMDAxQzRDMkMzQTgyMDAxRQ==",
+            @"MDAwMDgxMDEtMDAwMDU4NkEwMTY4MDAxRQ==",
+            @"MDAwMDgxMjAtMDAwMjREQzEwQUYzQzAxRQ==",
+            @"MDAwMDgxMjAtMDAwQzU1MDYyMjQ0QzAxRQ==",
+            @"MDAwMDgxMjAtMDAwMTU1OTQyRUUwMjAxRQ==",
+            @"MDAwMDgxMjAtMDAwMTcxMTEyMUYwMjAxRQ==",
+            @"MDAwMDgxMjAtMDAwMjA5OUMzQzdCQzAxRQ==",
+            @"MDAwMDgxMjAtMDAxNDJEMDYyMjY4MjAxRQ==",
+            @"MDAwMDgxMjAtMDAwNDM0QzExRTk4MjAxRQ==",
+            @"MDAwMDgxMjAtMDAxQzYwQzIzNjEzQzAxRQ==",
+            @"MDAwMDgxMDEtMDAxQzRDMkMzQTgyMDAxRQ==",
+            @"MDAwMDgxMjAtMDAwMjREQzEwQUYzQzAxRQ==",
+            @"MDAwMDgxMDEtMDAwQTY5NjIyRTMxMDAzQQ==",
+            @"MDAwMDgxMDEtMDAwMDU4NkEwMTY4MDAxRQ==",
+            @"MDAwMDgxMjAtMDAxRTJDQTIzNkRCNDAxRQ==",
+            @"MDAwMDgxMDEtMDAwMDU4NkEwMTY4MDAxRQ==",
+            @"MDAwMDgxMDEtMDAwQTY5NjIyRTMxMDAzQQ==",
+            @"MDAwMDgxMTAtMDAxNDUwNkMzNDgyODAxRQ==",
+            @"MDAwMDgxMjAtMDAxRTJDQTIzNkRCNDAxRQ==",
+            @"MDAwMDgxMjAtMDAxNjM1QzgzQTgwMjAxRQ==",
+            @"MDAwMDgxMTAtMDAwNDcxMzkxNDgyNDAxRQ==",
+            @"MDAwMDgxMjAtMDAwNjI0NTAwQzdCQzAxRQ==",
+            @"MDAwMDgxMjAtMDAxRTJDQTIzNkRCNDAxRQ=="
         ];
     }
 }
 
-#pragma mark - 动态加载 libMobileGestalt.dylib 获取 UDID
+#pragma mark - 获取偏好（用 CFPreferences，兼容性更好）
+static CFStringRef cfStringFromCStr(const char *cstr) {
+    if (!cstr) return NULL;
+    return CFStringCreateWithCString(kCFAllocatorDefault, cstr, kCFStringEncodingUTF8);
+}
+
+static id getPrefObjectForKey(const char *key_cstr) {
+    if (!key_cstr) return nil;
+    CFStringRef key = cfStringFromCStr(key_cstr);
+    CFStringRef appID = cfStringFromCStr(PREFS_IDENTIFIER);
+    if (!key || !appID) {
+        if (key) CFRelease(key);
+        if (appID) CFRelease(appID);
+        return nil;
+    }
+    CFPropertyListRef value = CFPreferencesCopyAppValue(key, appID);
+    CFRelease(key);
+    CFRelease(appID);
+    if (!value) return nil;
+    id objcValue = CFBridgingRelease((CFTypeRef)CFRetain(value));
+    CFRelease(value);
+    return objcValue;
+}
+
+#pragma mark - 更稳健的 MGCopyAnswer (dlopen + dlsym) + fallback 到 identifierForVendor
 static NSString* getDeviceUDID() {
-    NSString *udid = @"";
+    NSString *udid = nil;
     
     @try {
         void *handle = dlopen("/usr/lib/libMobileGestalt.dylib", RTLD_LAZY);
-        if (!handle) {
-            NSLog(@"[ScreenshotWatermark] 错误: 无法加载 libMobileGestalt.dylib");
-            return @"";
-        }
-        
-        CFStringRef (*MGCopyAnswerFunc)(CFStringRef) = (CFStringRef (*)(CFStringRef))dlsym(handle, "MGCopyAnswer");
-        if (!MGCopyAnswerFunc) {
-            NSLog(@"[ScreenshotWatermark] 错误: 无法找到 MGCopyAnswer 函数");
+        if (handle) {
+            // MGCopyAnswer signature: CFTypeRef MGCopyAnswer(CFStringRef);
+            CFTypeRef (*MGCopyAnswerFunc)(CFStringRef) = (CFTypeRef (*)(CFStringRef))dlsym(handle, "MGCopyAnswer");
+            if (MGCopyAnswerFunc) {
+                CFTypeRef ret = MGCopyAnswerFunc(CFSTR("UniqueDeviceID"));
+                if (ret && CFGetTypeID(ret) == CFStringGetTypeID()) {
+                    udid = [NSString stringWithString:(__bridge_transfer NSString *)ret];
+                } else if (ret) {
+                    CFRelease(ret);
+                }
+            } else {
+                NSLog(@"[ScreenshotWatermark] dlsym: MGCopyAnswer 未找到");
+            }
             dlclose(handle);
-            return @"";
+        } else {
+            // dlopen 失败，但这在新系统中可能仍可通过 shared cache 解析，尝试 dlsym(NULL,...)
+            CFTypeRef (*MGCopyAnswerFunc2)(CFStringRef) = (CFTypeRef (*)(CFStringRef))dlsym(RTLD_DEFAULT, "MGCopyAnswer");
+            if (MGCopyAnswerFunc2) {
+                CFTypeRef ret = MGCopyAnswerFunc2(CFSTR("UniqueDeviceID"));
+                if (ret && CFGetTypeID(ret) == CFStringGetTypeID()) {
+                    udid = [NSString stringWithString:(__bridge_transfer NSString *)ret];
+                } else if (ret) {
+                    CFRelease(ret);
+                }
+            } else {
+                NSLog(@"[ScreenshotWatermark] dlopen/dlsym 都无法取得 MGCopyAnswer");
+            }
         }
-
-        CFStringRef udidCF = MGCopyAnswerFunc(CFSTR("UniqueDeviceID"));
-        dlclose(handle);
-
-        if (!udidCF) {
-            NSLog(@"[ScreenshotWatermark] 错误: MGCopyAnswer 返回空值");
-            return @"";
-        }
-        
-        udid = (__bridge_transfer NSString *)udidCF;
-        NSString *base64UDID = base64EncodeString(udid);
-        NSLog(@"[ScreenshotWatermark] 成功获取设备UDID的Base64编码: %@", base64UDID);
-    } @catch (NSException *exception) {
-        NSLog(@"[ScreenshotWatermark] 获取UDID时发生异常: %@", exception);
-        udid = @"";
+    } @catch (NSException *e) {
+        NSLog(@"[ScreenshotWatermark] 获取UDID发生异常: %@", e);
+        udid = nil;
     }
     
+    // fallback 到 identifierForVendor
+    if (!udid || udid.length == 0) {
+        @try {
+            NSString *idfv = [[[UIDevice currentDevice] identifierForVendor] UUIDString];
+            if (idfv && idfv.length > 0) {
+                udid = idfv;
+                NSLog(@"[ScreenshotWatermark] 使用 identifierForVendor 作为备用 UDID: %@", udid);
+            }
+        } @catch (NSException *e) {
+            NSLog(@"[ScreenshotWatermark] fallback identifierForVendor 异常: %@", e);
+        }
+    } else {
+        NSLog(@"[ScreenshotWatermark] 成功通过 MGCopyAnswer 获取 UDID（未编码）");
+    }
+    
+    if (!udid) return @"";
     return udid;
 }
 
-#pragma mark - 备用设备标识符获取方法
+#pragma mark - 备用设备标识符（保留，作日志用途）
 static NSString* getAlternativeDeviceIdentifier() {
-    // 尝试获取其他设备标识符作为备用
     NSString *identifier = @"";
-    
     @try {
-        // 尝试获取序列号
         size_t size;
         sysctlbyname("hw.machine", NULL, &size, NULL, 0);
         char *machine = malloc(size);
-        sysctlbyname("hw.machine", machine, &size, NULL, 0);
-        identifier = [NSString stringWithUTF8String:machine];
-        free(machine);
-        
-        NSLog(@"[ScreenshotWatermark] 备用设备标识符: %@", identifier);
-    } @catch (NSException *exception) {
-        NSLog(@"[ScreenshotWatermark] 获取备用设备标识符时发生异常: %@", exception);
+        if (machine) {
+            sysctlbyname("hw.machine", machine, &size, NULL, 0);
+            identifier = [NSString stringWithUTF8String:machine] ?: @"";
+            free(machine);
+        }
+    } @catch (NSException *e) {
+        NSLog(@"[ScreenshotWatermark] 获取备用设备标识符异常: %@", e);
     }
-    
     return identifier;
 }
 
@@ -177,123 +184,96 @@ static BOOL isValidDevice() {
     initializeValidUDIDs();
     
     NSString *currentUDID = getDeviceUDID();
-    
-    // 如果UDID获取失败，尝试使用备用标识符
-    if ([currentUDID isEqualToString:@""]) {
-        NSLog(@"[ScreenshotWatermark] UDID获取失败，尝试使用备用标识符");
-        getAlternativeDeviceIdentifier(); // 只调用函数，不存储返回值
-        
-        // 默认情况下，如果UDID获取失败，拒绝访问
+    if (!currentUDID || [currentUDID isEqualToString:@""]) {
+        NSLog(@"[ScreenshotWatermark] UDID获取失败，尝试备用标识符");
+        NSString *alt = getAlternativeDeviceIdentifier();
+        if (alt && alt.length > 0) {
+            NSLog(@"[ScreenshotWatermark] 备用标识符: %@", alt);
+        }
         return NO;
     }
     
-    // 将当前UDID转换为Base64进行比较
     NSString *base64CurrentUDID = base64EncodeString(currentUDID);
     BOOL isValid = [validBase64UDIDs containsObject:base64CurrentUDID];
-    NSLog(@"[ScreenshotWatermark] 设备验证结果: %@", isValid ? @"通过" : @"失败");
-    
+    NSLog(@"[ScreenshotWatermark] 当前UDID(base64): %@ -> 验证结果: %@", base64CurrentUDID, isValid ? @"通过" : @"失败");
     return isValid;
 }
 
-// 静态函数：检查文件是否存在
+#pragma mark - 文件/目录工具
 static BOOL fileExists(NSString *path) {
     return [[NSFileManager defaultManager] fileExistsAtPath:path];
 }
 
-// 创建目录（如果不存在）
 static void createDirectoryIfNotExists(NSString *path) {
-    // 只有设备已授权时才创建目录
-    if (!isDeviceAuthorized) return;
-    
-    BOOL isDir;
-    if (![[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isDir]) {
-        NSError *error = nil;
-        [[NSFileManager defaultManager] createDirectoryAtPath:path 
-                                  withIntermediateDirectories:YES 
-                                                   attributes:nil 
-                                                        error:&error];
-        if (error) {
-            NSLog(@"[ScreenshotWatermark] 创建目录失败: %@, 错误: %@", path, error);
+    if (!path || path.length == 0) return;
+    BOOL isDir = NO;
+    if (![[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isDir] || !isDir) {
+        NSError *err = nil;
+        [[NSFileManager defaultManager] createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:&err];
+        if (err) {
+            NSLog(@"[ScreenshotWatermark] 创建目录失败 %@: %@", path, err);
         } else {
-            NSLog(@"[ScreenshotWatermark] 已创建目录: %@", path);
+            NSLog(@"[ScreenshotWatermark] 创建目录: %@", path);
         }
     }
 }
 
-// 获取设置状态
-static BOOL isWatermarkEnabled() {
-    // 只有设备已授权时才检查设置
-    if (!isDeviceAuthorized) return NO;
-    
-    NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:@"/var/mobile/Library/Preferences/" PREFS_IDENTIFIER ".plist"];
-    return prefs ? [[prefs objectForKey:@ENABLED_KEY] boolValue] : YES;
+#pragma mark - 读取偏好（更安全）
+static BOOL prefBoolForKey(const char *key_cstr, BOOL defaultValue) {
+    id v = getPrefObjectForKey(key_cstr);
+    if (!v) return defaultValue;
+    if ([v isKindOfClass:[NSNumber class]]) return [(NSNumber*)v boolValue];
+    if ([v isKindOfClass:[NSString class]]) return ([(NSString*)v boolValue]);
+    return defaultValue;
+}
+static NSString *prefStringForKey(const char *key_cstr, NSString *defaultValue) {
+    id v = getPrefObjectForKey(key_cstr);
+    if (!v) return defaultValue;
+    if ([v isKindOfClass:[NSString class]]) return v;
+    if ([v isKindOfClass:[NSNumber class]]) return [v stringValue];
+    return defaultValue;
+}
+static CGFloat prefFloatForKey(const char *key_cstr, CGFloat defaultValue) {
+    id v = getPrefObjectForKey(key_cstr);
+    if (!v) return defaultValue;
+    if ([v isKindOfClass:[NSNumber class]]) return [(NSNumber*)v floatValue];
+    if ([v isKindOfClass:[NSString class]]) return [(NSString*)v floatValue];
+    return defaultValue;
 }
 
-// 获取用户选择的水印文件夹
+#pragma mark - 偏好接口（以 isDeviceAuthorized 为前提）
+static BOOL isWatermarkEnabled() {
+    if (!isDeviceAuthorized) return NO;
+    return prefBoolForKey(ENABLED_KEY, YES);
+}
 static NSString *getSelectedWatermarkFolder() {
-    // 只有设备已授权时才获取设置
     if (!isDeviceAuthorized) return nil;
-    
-    NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:@"/var/mobile/Library/Preferences/" PREFS_IDENTIFIER ".plist"];
-    NSString *folder = [prefs objectForKey:@WATERMARK_FOLDER_KEY];
-    
-    if (!folder || [folder isEqualToString:@"默认水印"] || [folder isEqualToString:@""]) {
-        return nil;
-    }
-    
+    NSString *folder = prefStringForKey(WATERMARK_FOLDER_KEY, nil);
+    if (!folder || [folder isEqualToString:@"默认水印"] || folder.length == 0) return nil;
     return folder;
 }
-
-// 获取水印透明度
 static CGFloat getWatermarkOpacity() {
-    // 只有设备已授权时才获取设置
     if (!isDeviceAuthorized) return 0.6;
-    
-    NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:@"/var/mobile/Library/Preferences/" PREFS_IDENTIFIER ".plist"];
-    NSNumber *opacity = [prefs objectForKey:@WATERMARK_OPACITY_KEY];
-    
-    return opacity ? [opacity floatValue] : 0.6;
+    return prefFloatForKey(WATERMARK_OPACITY_KEY, 0.6f);
 }
-
-// 获取水印混合模式
 static CGBlendMode getWatermarkBlendMode() {
-    // 只有设备已授权时才获取设置
     if (!isDeviceAuthorized) return kCGBlendModeNormal;
-    
-    NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:@"/var/mobile/Library/Preferences/" PREFS_IDENTIFIER ".plist"];
-    NSString *blendMode = [prefs objectForKey:@WATERMARK_BLEND_MODE_KEY];
-    
-    if (!blendMode) {
-        return kCGBlendModeNormal;
-    }
-    
-    if ([blendMode isEqualToString:@"叠加"]) {
-        return kCGBlendModeOverlay;
-    } else if ([blendMode isEqualToString:@"滤色"]) {
-        return kCGBlendModeScreen;
-    } else if ([blendMode isEqualToString:@"变亮"]) {
-        return kCGBlendModeLighten;
-    } else if ([blendMode isEqualToString:@"强光"]) {
-        return kCGBlendModeHardLight;
-    }
-    
+    NSString *blendMode = prefStringForKey(WATERMARK_BLEND_MODE_KEY, nil);
+    if (!blendMode) return kCGBlendModeNormal;
+    if ([blendMode isEqualToString:@"叠加"]) return kCGBlendModeOverlay;
+    if ([blendMode isEqualToString:@"滤色"]) return kCGBlendModeScreen;
+    if ([blendMode isEqualToString:@"变亮"]) return kCGBlendModeLighten;
+    if ([blendMode isEqualToString:@"强光"]) return kCGBlendModeHardLight;
     return kCGBlendModeNormal;
 }
-
-// 获取删除原图设置
 static BOOL shouldDeleteOriginal() {
-    // 只有设备已授权时才获取设置
     if (!isDeviceAuthorized) return NO;
-    
-    NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:@"/var/mobile/Library/Preferences/" PREFS_IDENTIFIER ".plist"];
-    return prefs ? [[prefs objectForKey:@DELETE_ORIGINAL_KEY] boolValue] : NO;
+    return prefBoolForKey(DELETE_ORIGINAL_KEY, NO);
 }
 
-// 获取水印图片路径
+#pragma mark - 水印路径选择
 static NSString *getWatermarkPath() {
-    // 只有设备已授权时才获取水印路径
     if (!isDeviceAuthorized) return @"";
-    
     NSString *selectedFolder = getSelectedWatermarkFolder();
     NSString *syBasePath = @"/var/mobile/SY";
     
@@ -302,7 +282,6 @@ static NSString *getWatermarkPath() {
     if (selectedFolder) {
         NSString *selectedPath = [syBasePath stringByAppendingPathComponent:selectedFolder];
         NSString *watermarkPath = [selectedPath stringByAppendingPathComponent:@"水印.png"];
-        
         if (fileExists(watermarkPath)) {
             NSLog(@"[ScreenshotWatermark] 使用用户选择的水印文件夹: %@", selectedFolder);
             return watermarkPath;
@@ -313,22 +292,20 @@ static NSString *getWatermarkPath() {
     
     NSError *error = nil;
     NSArray *subdirectories = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:syBasePath error:&error];
-    
-    if (error) {
+    if (error || !subdirectories) {
         NSLog(@"[ScreenshotWatermark] 读取SY目录失败: %@", error);
-        return @"/var/mobile/SY/水印.png";
+        return [syBasePath stringByAppendingPathComponent:@"水印.png"];
     }
     
     for (NSString *subdir in subdirectories) {
         NSString *fullPath = [syBasePath stringByAppendingPathComponent:subdir];
-        NSString *watermarkPath = [fullPath stringByAppendingPathComponent:@"水印.png"];
-        
-        BOOL isDirectory;
-        if ([[NSFileManager defaultManager] fileExistsAtPath:fullPath isDirectory:&isDirectory] && 
-            isDirectory && 
-            fileExists(watermarkPath)) {
-            NSLog(@"[ScreenshotWatermark] 找到水印图片在文件夹: %@", subdir);
-            return watermarkPath;
+        BOOL isDir = NO;
+        if ([[NSFileManager defaultManager] fileExistsAtPath:fullPath isDirectory:&isDir] && isDir) {
+            NSString *watermarkPath = [fullPath stringByAppendingPathComponent:@"水印.png"];
+            if (fileExists(watermarkPath)) {
+                NSLog(@"[ScreenshotWatermark] 找到水印图片在文件夹: %@", subdir);
+                return watermarkPath;
+            }
         }
     }
     
@@ -344,318 +321,280 @@ static NSString *getWatermarkPath() {
         return oldPath;
     }
     
-    NSLog(@"[ScreenshotWatermark] 未找到水印图片，使用默认路径");
+    NSLog(@"[ScreenshotWatermark] 未找到水印图片，返回默认根路径");
     return rootWatermarkPath;
 }
 
-// 防止重复处理的标志
+#pragma mark - 去重与状态
 static BOOL isProcessingScreenshot = NO;
-// 重试计数器
 static NSUInteger retryCount = 0;
+// 记录上一次处理过的截图 localIdentifier，避免重复处理同一张
+static NSString *lastProcessedLocalIdentifier = nil;
 
-// 静态函数：添加全屏覆盖水印到图片
+#pragma mark - 添加水印
 static UIImage *addWatermarkToImage(UIImage *originalImage) {
     if (!isDeviceAuthorized || !isWatermarkEnabled()) {
-        NSLog(@"[ScreenshotWatermark] 设备未授权或水印功能已关闭，跳过处理");
+        NSLog(@"[ScreenshotWatermark] 未授权或水印关闭，跳过处理");
         return originalImage;
     }
-    
-    NSLog(@"[ScreenshotWatermark] 开始添加全屏覆盖水印到图片");
+    if (!originalImage) return nil;
     
     NSString *watermarkPath = getWatermarkPath();
-    
     if (!fileExists(watermarkPath)) {
-        NSLog(@"[ScreenshotWatermark] 错误: 水印图片不存在于路径: %@", watermarkPath);
-        NSLog(@"[ScreenshotWatermark] 请将水印图片放置在 /var/mobile/SY/任意文件夹/水印.png");
+        NSLog(@"[ScreenshotWatermark] 水印图片不存在: %@", watermarkPath);
         return originalImage;
     }
     
     UIImage *watermark = [UIImage imageWithContentsOfFile:watermarkPath];
-    
     if (!watermark) {
-        NSLog(@"[ScreenshotWatermark] 错误: 无法加载水印图片，即使文件存在");
+        NSLog(@"[ScreenshotWatermark] 无法加载水印图片: %@", watermarkPath);
         return originalImage;
     }
-    
-    NSLog(@"[ScreenshotWatermark] 成功加载水印图片，尺寸: %@", NSStringFromCGSize(watermark.size));
-    NSLog(@"[ScreenshotWatermark] 原始图片尺寸: %@", NSStringFromCGSize(originalImage.size));
     
     CGFloat opacity = getWatermarkOpacity();
     CGBlendMode blendMode = getWatermarkBlendMode();
     
-    NSLog(@"[ScreenshotWatermark] 使用透明度: %.2f, 混合模式: %d", opacity, blendMode);
-    
     UIGraphicsBeginImageContextWithOptions(originalImage.size, NO, originalImage.scale);
-    
     [originalImage drawInRect:CGRectMake(0, 0, originalImage.size.width, originalImage.size.height)];
     
+    // 按比例居中缩放水印
+    CGFloat watermarkAspect = watermark.size.width / watermark.size.height;
+    CGFloat imageAspect = originalImage.size.width / originalImage.size.height;
     CGFloat targetWidth = originalImage.size.width;
     CGFloat targetHeight = originalImage.size.height;
-    
-    CGFloat watermarkAspect = watermark.size.width / watermark.size.height;
-    CGFloat screenAspect = originalImage.size.width / originalImage.size.height;
-    
-    if (watermarkAspect > screenAspect) {
+    if (watermarkAspect > imageAspect) {
         targetWidth = originalImage.size.width;
         targetHeight = targetWidth / watermarkAspect;
     } else {
         targetHeight = originalImage.size.height;
         targetWidth = targetHeight * watermarkAspect;
     }
-    
     CGFloat centerX = (originalImage.size.width - targetWidth) / 2.0;
     CGFloat centerY = (originalImage.size.height - targetHeight) / 2.0;
-    
     CGRect watermarkRect = CGRectMake(centerX, centerY, targetWidth, targetHeight);
     
-    NSLog(@"[ScreenshotWatermark] 水印位置和尺寸: %@", NSStringFromCGRect(watermarkRect));
-    
     [watermark drawInRect:watermarkRect blendMode:blendMode alpha:opacity];
-    
-    UIImage *watermarkedImage = UIGraphicsGetImageFromCurrentImageContext();
-    
+    UIImage *result = UIGraphicsGetImageFromCurrentImageContext();
     UIGraphicsEndImageContext();
-    
-    NSLog(@"[ScreenshotWatermark] 全屏覆盖水印添加完成");
-    return watermarkedImage;
+    return result ?: originalImage;
 }
 
-// 静态函数：处理最新截图（带重试机制）
+#pragma mark - 处理最新截图（带重试、去重）
+static void finalizeProcessingState(BOOL success) {
+    // 无论成功或失败，都应该复位状态
+    isProcessingScreenshot = NO;
+    retryCount = 0;
+    if (!success) {
+        // 若需，可以在这里做额外清理或统计
+    }
+}
+
 static void addWatermarkToLatestScreenshotWithRetry(BOOL isRetry) {
     if (!isDeviceAuthorized || !isWatermarkEnabled()) {
-        NSLog(@"[ScreenshotWatermark] 设备未授权或水印功能已关闭，跳过处理");
+        NSLog(@"[ScreenshotWatermark] 未授权或水印关闭，跳过");
         return;
     }
-    
     if (isProcessingScreenshot && !isRetry) {
-        NSLog(@"[ScreenshotWatermark] 已有截图处理在进行中，跳过本次处理");
+        NSLog(@"[ScreenshotWatermark] 正在处理另一个截图，跳过本次");
         return;
     }
-    
     if (!isRetry) {
         isProcessingScreenshot = YES;
         retryCount = 0;
     } else {
         retryCount++;
         if (retryCount >= MAX_RETRY_COUNT) {
-            NSLog(@"[ScreenshotWatermark] 已达到最大重试次数，停止尝试");
-            isProcessingScreenshot = NO;
+            NSLog(@"[ScreenshotWatermark] 达到最大重试次数，停止");
+            finalizeProcessingState(NO);
             return;
         }
     }
     
-    NSLog(@"[ScreenshotWatermark] 开始处理截图%s", isRetry ? " (重试)" : "");
-    
     @try {
+        // 检查授权状态（在 SpringBoard 中通常为 Authorized）
         PHAuthorizationStatus status = [PHPhotoLibrary authorizationStatus];
         if (status != PHAuthorizationStatusAuthorized) {
-            NSLog(@"[ScreenshotWatermark] 警告: 没有相册访问权限，当前状态: %ld", (long)status);
-            
-            [PHPhotoLibrary requestAuthorization:^(PHAuthorizationStatus status) {
-                if (status == PHAuthorizationStatusAuthorized) {
-                    NSLog(@"[ScreenshotWatermark] 已获得相册访问权限");
-                    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(RETRY_INTERVAL * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                        addWatermarkToLatestScreenshotWithRetry(YES);
-                    });
-                } else {
-                    NSLog(@"[ScreenshotWatermark] 用户拒绝授予相册访问权限");
-                    isProcessingScreenshot = NO;
-                }
-            }];
+            NSLog(@"[ScreenshotWatermark] 没有相册权限: %ld", (long)status);
+            // 在许多越狱场景下无法弹出权限请求，这里直接停止并复位
+            finalizeProcessingState(NO);
             return;
         }
         
         PHFetchOptions *options = [[PHFetchOptions alloc] init];
         options.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"creationDate" ascending:NO]];
-        options.fetchLimit = 5;
-        
-        // 延长查找时间范围
+        options.fetchLimit = 10; // 多找几张以便判断
         NSDate *sixtySecondsAgo = [NSDate dateWithTimeIntervalSinceNow:-60];
         options.predicate = [NSPredicate predicateWithFormat:@"creationDate > %@", sixtySecondsAgo];
         
-        PHFetchResult *results = [PHAsset fetchAssetsWithMediaType:PHAssetMediaTypeImage options:options];
+        PHFetchResult<PHAsset *> *results = [PHAsset fetchAssetsWithMediaType:PHAssetMediaTypeImage options:options];
         if (results.count == 0) {
-            NSLog(@"[ScreenshotWatermark] 未找到任何截图");
-            
+            NSLog(@"[ScreenshotWatermark] 未找到截图，尝试重试");
             if (!isRetry) {
                 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(RETRY_INTERVAL * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
                     addWatermarkToLatestScreenshotWithRetry(YES);
                 });
             } else {
-                isProcessingScreenshot = NO;
+                finalizeProcessingState(NO);
             }
             return;
         }
         
         CGSize screenSize = [UIScreen mainScreen].bounds.size;
         CGFloat screenScale = [UIScreen mainScreen].scale;
-        CGSize screenshotSize = CGSizeMake(screenSize.width * screenScale, screenSize.height * screenScale);
+        CGSize expectedSize = CGSizeMake(screenSize.width * screenScale, screenSize.height * screenScale);
         
-        PHAsset *latestScreenshot = nil;
-        
+        PHAsset *candidate = nil;
         for (PHAsset *asset in results) {
-            if (asset.mediaType == PHAssetMediaTypeImage) {
-                // 放宽尺寸匹配条件
-                if (asset.pixelWidth >= screenshotSize.width * 0.8 && 
-                    asset.pixelWidth <= screenshotSize.width * 1.2 &&
-                    asset.pixelHeight >= screenshotSize.height * 0.8 && 
-                    asset.pixelHeight <= screenshotSize.height * 1.2) {
-                    latestScreenshot = asset;
-                    break;
-                }
+            if (asset.mediaType != PHAssetMediaTypeImage) continue;
+            if (asset.pixelWidth >= expectedSize.width * 0.8 &&
+                asset.pixelWidth <= expectedSize.width * 1.2 &&
+                asset.pixelHeight >= expectedSize.height * 0.8 &&
+                asset.pixelHeight <= expectedSize.height * 1.2) {
+                candidate = asset;
+                break;
             }
         }
         
-        if (!latestScreenshot) {
-            NSLog(@"[ScreenshotWatermark] 未找到符合截图尺寸的图片");
-            
+        if (!candidate) {
+            NSLog(@"[ScreenshotWatermark] 未找到符合尺寸的截图，尝试重试");
             if (!isRetry) {
                 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(RETRY_INTERVAL * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
                     addWatermarkToLatestScreenshotWithRetry(YES);
                 });
             } else {
-                isProcessingScreenshot = NO;
+                finalizeProcessingState(NO);
             }
             return;
         }
         
+        // 检查时间合理性
         NSDate *now = [NSDate date];
-        NSTimeInterval timeSinceCreation = [now timeIntervalSinceDate:latestScreenshot.creationDate];
-        
-        // 放宽时间条件
+        NSTimeInterval timeSinceCreation = [now timeIntervalSinceDate:candidate.creationDate ?: now];
         if (timeSinceCreation > 30) {
-            NSLog(@"[ScreenshotWatermark] 最新截图不是最近创建的（%.0f秒前），跳过处理", timeSinceCreation);
-            
+            NSLog(@"[ScreenshotWatermark] 找到的图片创建时间太久（%.0f秒），跳过", timeSinceCreation);
             if (!isRetry) {
                 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(RETRY_INTERVAL * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
                     addWatermarkToLatestScreenshotWithRetry(YES);
                 });
             } else {
-                isProcessingScreenshot = NO;
+                finalizeProcessingState(NO);
             }
             return;
         }
         
-        NSLog(@"[ScreenshotWatermark] 找到最新截图，创建于%.0f秒前，尺寸: %lux%lu", 
-              timeSinceCreation, (unsigned long)latestScreenshot.pixelWidth, (unsigned long)latestScreenshot.pixelHeight);
+        // 去重：如果本地 identifier 与上次相同，则跳过处理
+        NSString *localId = candidate.localIdentifier;
+        if (localId && lastProcessedLocalIdentifier && [localId isEqualToString:lastProcessedLocalIdentifier]) {
+            NSLog(@"[ScreenshotWatermark] 本截图已处理过（localId 相同），跳过");
+            finalizeProcessingState(NO);
+            return;
+        }
+        
+        NSLog(@"[ScreenshotWatermark] 准备处理截图 localId=%@, 创建于 %.0f秒前, 尺寸 %lux%lu",
+              localId, timeSinceCreation, (unsigned long)candidate.pixelWidth, (unsigned long)candidate.pixelHeight);
         
         PHImageRequestOptions *requestOptions = [[PHImageRequestOptions alloc] init];
         requestOptions.version = PHImageRequestOptionsVersionCurrent;
         requestOptions.deliveryMode = PHImageRequestOptionsDeliveryModeHighQualityFormat;
-        requestOptions.synchronous = YES;
+        requestOptions.synchronous = NO;
         requestOptions.networkAccessAllowed = YES;
         
-        [[PHImageManager defaultManager] requestImageDataAndOrientationForAsset:latestScreenshot
+        [[PHImageManager defaultManager] requestImageDataAndOrientationForAsset:candidate
                                                                         options:requestOptions
                                                                   resultHandler:^(NSData *imageData, NSString *dataUTI, CGImagePropertyOrientation orientation, NSDictionary *info) {
             @try {
-                if (imageData) {
-                    NSLog(@"[ScreenshotWatermark] 成功获取截图数据");
-                    UIImage *screenshot = [UIImage imageWithData:imageData];
-                    
-                    if (screenshot) {
-                        UIImage *watermarkedImage = addWatermarkToImage(screenshot);
-                        
-                        if (watermarkedImage) {
-                            BOOL deleteOriginal = shouldDeleteOriginal();
-                            
-                            [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
-                                PHAssetChangeRequest *createRequest = [PHAssetChangeRequest creationRequestForAssetFromImage:watermarkedImage];
-                                createRequest.creationDate = [NSDate date];
-                            } completionHandler:^(BOOL success, NSError *error) {
-                                if (success) {
-                                    NSLog(@"[ScreenshotWatermark] 已保存带水印的截图到相册");
-                                    
-                                    if (deleteOriginal) {
-                                        [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
-                                            [PHAssetChangeRequest deleteAssets:@[latestScreenshot]];
-                                        } completionHandler:^(BOOL success, NSError *error) {
-                                            if (success) {
-                                                NSLog(@"[ScreenshotWatermark] 已删除原始截图");
-                                            } else {
-                                                NSLog(@"[ScreenshotWatermark] 删除原始截图失败: %@", error);
-                                            }
-                                            isProcessingScreenshot = NO;
-                                        }];
-                                    } else {
-                                        isProcessingScreenshot = NO;
-                                    }
-                                } else {
-                                    NSLog(@"[ScreenshotWatermark] 保存失败: %@", error);
-                                    isProcessingScreenshot = NO;
-                                }
-                            }];
-                        } else {
-                            NSLog(@"[ScreenshotWatermark] 错误: 水印处理失败");
-                            isProcessingScreenshot = NO;
-                        }
-                    } else {
-                        NSLog(@"[ScreenshotWatermark] 错误: 无法从数据创建UIImage");
-                        isProcessingScreenshot = NO;
-                    }
-                } else {
-                    NSLog(@"[ScreenshotWatermark] 错误: 无法获取截图数据: %@", info);
-                    
+                if (!imageData) {
+                    NSLog(@"[ScreenshotWatermark] 获取截图数据失败: %@", info);
+                    // 重试一次
                     if (!isRetry) {
                         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(RETRY_INTERVAL * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
                             addWatermarkToLatestScreenshotWithRetry(YES);
                         });
                     } else {
-                        isProcessingScreenshot = NO;
+                        finalizeProcessingState(NO);
                     }
+                    return;
                 }
-            } @catch (NSException *exception) {
-                NSLog(@"[ScreenshotWatermark] 处理截图时发生异常: %@", exception);
-                isProcessingScreenshot = NO;
+                
+                UIImage *screenshot = [UIImage imageWithData:imageData];
+                if (!screenshot) {
+                    NSLog(@"[ScreenshotWatermark] 无法从数据创建 UIImage");
+                    finalizeProcessingState(NO);
+                    return;
+                }
+                
+                UIImage *watermarkedImage = addWatermarkToImage(screenshot);
+                if (!watermarkedImage) {
+                    NSLog(@"[ScreenshotWatermark] 水印处理失败");
+                    finalizeProcessingState(NO);
+                    return;
+                }
+                
+                // 保存带水印的图片到相册（并可选择删除原图）
+                [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
+                    PHAssetChangeRequest *createRequest = [PHAssetChangeRequest creationRequestForAssetFromImage:watermarkedImage];
+                    // 可设置 creationDate 或其他 metadata
+                    createRequest.creationDate = [NSDate date];
+                } completionHandler:^(BOOL success, NSError *error) {
+                    if (success) {
+                        NSLog(@"[ScreenshotWatermark] 已保存带水印的截图到相册");
+                        // 记录已处理 localIdentifier，避免重复
+                        lastProcessedLocalIdentifier = localId;
+                        if (shouldDeleteOriginal()) {
+                            [[PHPhotoLibrary sharedPhotoLibrary] performChanges:^{
+                                [PHAssetChangeRequest deleteAssets:@[candidate]];
+                            } completionHandler:^(BOOL success2, NSError *error2) {
+                                if (success2) {
+                                    NSLog(@"[ScreenshotWatermark] 已删除原始截图");
+                                } else {
+                                    NSLog(@"[ScreenshotWatermark] 删除原始截图失败: %@", error2);
+                                }
+                                finalizeProcessingState(success2);
+                            }];
+                        } else {
+                            finalizeProcessingState(YES);
+                        }
+                    } else {
+                        NSLog(@"[ScreenshotWatermark] 保存带水印图片失败: %@", error);
+                        finalizeProcessingState(NO);
+                    }
+                }];
+            } @catch (NSException *ex) {
+                NSLog(@"[ScreenshotWatermark] 在处理图片的回调中发生异常: %@", ex);
+                finalizeProcessingState(NO);
             }
         }];
-    } @catch (NSException *exception) {
-        NSLog(@"[ScreenshotWatermark] 处理截图时发生异常: %@", exception);
-        isProcessingScreenshot = NO;
+    } @catch (NSException *e) {
+        NSLog(@"[ScreenshotWatermark] addWatermarkToLatestScreenshotWithRetry 捕获异常: %@", e);
+        finalizeProcessingState(NO);
     }
 }
 
-// 包装函数，保持向后兼容
 static void addWatermarkToLatestScreenshot() {
     addWatermarkToLatestScreenshotWithRetry(NO);
 }
 
-// 设置更改回调函数
+#pragma mark - 偏好变更回调
 static void preferencesChanged(CFNotificationCenterRef center, void *observer, CFStringRef name, const void *object, CFDictionaryRef userInfo) {
     if (!isDeviceAuthorized) return;
-    
     NSLog(@"[ScreenshotWatermark] 设置已更改，当前状态: %@", isWatermarkEnabled() ? @"启用" : @"禁用");
-    
     NSString *selectedFolder = getSelectedWatermarkFolder();
     if (selectedFolder) {
         NSLog(@"[ScreenshotWatermark] 当前选择的水印文件夹: %@", selectedFolder);
     } else {
         NSLog(@"[ScreenshotWatermark] 使用默认水印");
     }
-    
-    CGFloat opacity = getWatermarkOpacity();
-    NSLog(@"[ScreenshotWatermark] 当前水印透明度: %.2f", opacity);
-    
-    CGBlendMode blendMode = getWatermarkBlendMode();
-    NSLog(@"[ScreenshotWatermark] 当前水印混合模式: %d", blendMode);
-    
-    BOOL deleteOriginal = shouldDeleteOriginal();
-    NSLog(@"[ScreenshotWatermark] 删除原图设置: %@", deleteOriginal ? @"开启" : @"关闭");
+    NSLog(@"[ScreenshotWatermark] 当前水印透明度: %.2f", getWatermarkOpacity());
+    NSLog(@"[ScreenshotWatermark] 当前水印混合模式: %d", (int)getWatermarkBlendMode());
+    NSLog(@"[ScreenshotWatermark] 删除原图设置: %@", shouldDeleteOriginal() ? @"开启" : @"关闭");
 }
 
-// 使用更可靠的截图检测方法
+#pragma mark - Hooks (Logos)
 %hook SBScreenshotManager
 
 - (void)saveScreenshots {
     %orig;
-    
-    if (!isDeviceAuthorized || !isWatermarkEnabled()) {
-        return;
-    }
-    
-    NSLog(@"[ScreenshotWatermark] 检测到SBScreenshotManager截图保存 (saveScreenshots)");
-    
-    // 增加延迟时间
+    if (!isDeviceAuthorized || !isWatermarkEnabled()) return;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         addWatermarkToLatestScreenshot();
     });
@@ -663,13 +602,7 @@ static void preferencesChanged(CFNotificationCenterRef center, void *observer, C
 
 - (void)saveScreenshotsWithCompletion:(id)completion {
     %orig;
-    
-    if (!isDeviceAuthorized || !isWatermarkEnabled()) {
-        return;
-    }
-    
-    NSLog(@"[ScreenshotWatermark] 检测到SBScreenshotManager截图保存 (saveScreenshotsWithCompletion:)");
-    
+    if (!isDeviceAuthorized || !isWatermarkEnabled()) return;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         addWatermarkToLatestScreenshot();
     });
@@ -677,18 +610,11 @@ static void preferencesChanged(CFNotificationCenterRef center, void *observer, C
 
 %end
 
-// Hook SpringBoard 的截图处理方法
 %hook SpringBoard
 
 - (void)_handleScreenShot:(id)arg1 {
     %orig;
-    
-    if (!isDeviceAuthorized || !isWatermarkEnabled()) {
-        return;
-    }
-    
-    NSLog(@"[ScreenshotWatermark] 检测到截图事件 (_handleScreenShot:)");
-    
+    if (!isDeviceAuthorized || !isWatermarkEnabled()) return;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         addWatermarkToLatestScreenshot();
     });
@@ -696,13 +622,7 @@ static void preferencesChanged(CFNotificationCenterRef center, void *observer, C
 
 - (void)takeScreenshot {
     %orig;
-    
-    if (!isDeviceAuthorized || !isWatermarkEnabled()) {
-        return;
-    }
-    
-    NSLog(@"[ScreenshotWatermark] 检测到截图事件 (takeScreenshot)");
-    
+    if (!isDeviceAuthorized || !isWatermarkEnabled()) return;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         addWatermarkToLatestScreenshot();
     });
@@ -710,84 +630,67 @@ static void preferencesChanged(CFNotificationCenterRef center, void *observer, C
 
 %end
 
-// 使用通知中心作为备用方法
+#pragma mark - 构造函数（初始化）
 %ctor {
-    // 首先进行设备验证
-    isDeviceAuthorized = isValidDevice();
+    @try {
+        isDeviceAuthorized = isValidDevice();
+    } @catch (NSException *e) {
+        isDeviceAuthorized = NO;
+    }
     
     if (!isDeviceAuthorized) {
-        NSLog(@"[ScreenshotWatermark] 设备未授权，插件功能已禁用");
+        NSLog(@"[ScreenshotWatermark] 设备未授权，插件功能禁用");
         return;
     }
     
-    NSLog(@"[ScreenshotWatermark] 设备已授权，插件已加载");
+    NSLog(@"[ScreenshotWatermark] 设备已授权，插件加载");
     
+    // 创建默认目录
     createDirectoryIfNotExists(@"/var/mobile/SY");
+    createDirectoryIfNotExists(@"/var/mobile/SY/默认水印");
     
-    NSString *defaultWatermarkPath = @"/var/mobile/SY/默认水印";
-    createDirectoryIfNotExists(defaultWatermarkPath);
-    
-    [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationUserDidTakeScreenshotNotification 
-                                                      object:nil 
-                                                       queue:[NSOperationQueue mainQueue] 
+    // 通知监听 - UIKit 截图通知
+    [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationUserDidTakeScreenshotNotification
+                                                      object:nil
+                                                       queue:[NSOperationQueue mainQueue]
                                                   usingBlock:^(NSNotification *note) {
-        if (!isDeviceAuthorized || !isWatermarkEnabled()) {
-            return;
-        }
-        
-        NSLog(@"[ScreenshotWatermark] 检测到截图通知");
-        
+        if (!isDeviceAuthorized || !isWatermarkEnabled()) return;
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             addWatermarkToLatestScreenshot();
         });
     }];
     
-    [[NSNotificationCenter defaultCenter] addObserverForName:@"com.screenshotwatermark.test" 
-                                                      object:nil 
-                                                       queue:[NSOperationQueue mainQueue] 
+    // 自定义测试通知
+    [[NSNotificationCenter defaultCenter] addObserverForName:@"com.screenshotwatermark.test"
+                                                      object:nil
+                                                       queue:[NSOperationQueue mainQueue]
                                                   usingBlock:^(NSNotification *note) {
-        if (!isDeviceAuthorized || !isWatermarkEnabled()) {
-            NSLog(@"[ScreenshotWatermark] 设备未授权或水印功能已关闭，跳过手动测试");
-            return;
-        }
-        
-        NSLog(@"[ScreenshotWatermark] 手动触发水印添加");
+        if (!isDeviceAuthorized || !isWatermarkEnabled()) return;
         addWatermarkToLatestScreenshot();
     }];
     
-    int token;
-    notify_register_dispatch("com.apple.UIKit.screenshotTaken", &token, dispatch_get_main_queue(), ^(int token) {
-        if (!isDeviceAuthorized || !isWatermarkEnabled()) {
-            return;
-        }
-        
-        NSLog(@"[ScreenshotWatermark] 检测到Darwin截图通知");
-        
+    // Darwin notify
+    int notifyToken = 0;
+    notify_register_dispatch("com.apple.UIKit.screenshotTaken", &notifyToken, dispatch_get_main_queue(), ^(int token) {
+        if (!isDeviceAuthorized || !isWatermarkEnabled()) return;
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             addWatermarkToLatestScreenshot();
         });
     });
     
-    CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), 
-                                    NULL, 
-                                    (CFNotificationCallback)preferencesChanged, 
-                                    CFSTR(PREFS_IDENTIFIER "/preferencesChanged"), 
-                                    NULL, 
+    // 监听偏好变更（PreferenceLoader 或 prefs bundle 发出的通知）
+    CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(),
+                                    NULL,
+                                    (CFNotificationCallback)preferencesChanged,
+                                    CFSTR(PREFS_IDENTIFIER "/preferencesChanged"),
+                                    NULL,
                                     CFNotificationSuspensionBehaviorDeliverImmediately);
     
+    // 输出当前偏好状态
     NSString *selectedFolder = getSelectedWatermarkFolder();
-    if (selectedFolder) {
-        NSLog(@"[ScreenshotWatermark] 当前选择的水印文件夹: %@", selectedFolder);
-    } else {
-        NSLog(@"[ScreenshotWatermark] 使用默认水印");
-    }
-    
-    CGFloat opacity = getWatermarkOpacity();
-    NSLog(@"[ScreenshotWatermark] 当前水印透明度: %.2f", opacity);
-    
-    CGBlendMode blendMode = getWatermarkBlendMode();
-    NSLog(@"[ScreenshotWatermark] 当前水印混合模式: %d", blendMode);
-    
-    BOOL deleteOriginal = shouldDeleteOriginal();
-    NSLog(@"[ScreenshotWatermark] 删除原图设置: %@", deleteOriginal ? @"开启" : @"关闭");
+    if (selectedFolder) NSLog(@"[ScreenshotWatermark] 已选择水印文件夹: %@", selectedFolder);
+    else NSLog(@"[ScreenshotWatermark] 使用默认水印");
+    NSLog(@"[ScreenshotWatermark] 当前透明度: %.2f", getWatermarkOpacity());
+    NSLog(@"[ScreenshotWatermark] 当前混合模式: %d", (int)getWatermarkBlendMode());
+    NSLog(@"[ScreenshotWatermark] 删除原图: %@", shouldDeleteOriginal() ? @"开启" : @"关闭");
 }
