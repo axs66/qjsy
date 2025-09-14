@@ -101,7 +101,6 @@
     [tableView deselectRowAtIndexPath:indexPath animated:YES];
     
     NSString *selectedFolder = self.folders[indexPath.row];
-    NSString *folderValue = selectedFolder;
     
     // 保存选择
     NSMutableDictionary *prefs = [NSMutableDictionary dictionary];
@@ -109,9 +108,8 @@
     
     if (indexPath.row == 0) {
         [prefs removeObjectForKey:@"watermarkFolder"];
-        folderValue = @""; // 设置为空字符串表示默认
     } else {
-        [prefs setObject:folderValue forKey:@"watermarkFolder"];
+        [prefs setObject:selectedFolder forKey:@"watermarkFolder"];
     }
     
     [prefs writeToFile:@"/var/mobile/Library/Preferences/com.screenshotwatermark.preferences.plist" atomically:YES];
@@ -146,7 +144,7 @@
 - (void)updateWatermarkFolders {
     // 查找可用的水印文件夹
     NSMutableArray *folders = [NSMutableArray arrayWithObject:@"默认水印"];
-    NSMutableArray *folderValues = [NSMutableArray arrayWithObject:@""]; // 默认值设为空字符串
+    NSMutableArray *folderValues = [NSMutableArray arrayWithObject:@"默认水印"];
     
     NSString *syBasePath = @"/var/mobile/SY";
     NSFileManager *fileManager = [NSFileManager defaultManager];
@@ -185,15 +183,6 @@
     NSString *prefsPath = @"/var/mobile/Library/Preferences/com.screenshotwatermark.preferences.plist";
     NSDictionary *settings = [NSDictionary dictionaryWithContentsOfFile:prefsPath];
     
-    // 特殊处理水印文件夹设置项
-    if ([specifier.identifier isEqualToString:@"watermarkFolder"]) {
-        NSString *folderName = settings[specifier.properties[@"key"]];
-        if (!folderName || [folderName isEqualToString:@""]) {
-            return @"默认水印"; // 返回显示文本
-        }
-        return folderName; // 返回文件夹名称
-    }
-    
     // 若对应键值不存在，返回配置中设置的默认值
     if (!settings[specifier.properties[@"key"]]) {
         return specifier.properties[@"default"];
@@ -208,20 +197,8 @@
     
     // 先读取已有设置（避免覆盖其他配置项）
     [defaults addEntriesFromDictionary:[NSDictionary dictionaryWithContentsOfFile:prefsPath] ?: @{}];
-    
-    // 特殊处理水印文件夹设置项
-    if ([specifier.identifier isEqualToString:@"watermarkFolder"]) {
-        // 如果值是"默认水印"或空，则移除设置
-        if ([value isEqualToString:@"默认水印"] || [value isEqualToString:@""]) {
-            [defaults removeObjectForKey:specifier.properties[@"key"]];
-        } else {
-            [defaults setObject:value forKey:specifier.properties[@"key"]];
-        }
-    } else {
-        // 更新当前设置项的值
-        [defaults setObject:value forKey:specifier.properties[@"key"]];
-    }
-    
+    // 更新当前设置项的值
+    [defaults setObject:value forKey:specifier.properties[@"key"]];
     // 写入文件保存
     [defaults writeToFile:prefsPath atomically:YES];
 
@@ -233,7 +210,7 @@
     
     // 如果是水印文件夹设置项，立即更新显示
     if ([specifier.identifier isEqualToString:@"watermarkFolder"]) {
-        [self updateSelectedFolderDisplay];
+        [self updateSelectedFolderDisplay:value];
     }
 }
 
@@ -243,7 +220,8 @@
     [self updateWatermarkFolders];
     
     // 更新当前选中的文件夹显示
-    [self updateSelectedFolderDisplay];
+    NSString *selectedFolder = [self getCurrentSelectedFolderName];
+    [self updateSelectedFolderDisplay:selectedFolder];
 }
 
 // 处理设置项点击
@@ -256,9 +234,21 @@
         // 直接弹出文件夹选择器，不调用super
         [WatermarkFolderSelector presentFromViewController:self completion:^(NSString *selectedFolder) {
             // 更新界面显示
-            [self updateSelectedFolderDisplay];
+            [self updateSelectedFolderDisplay:selectedFolder];
             
-            // 发送通知刷新其他部分
+            // 保存选择
+            NSMutableDictionary *prefs = [NSMutableDictionary dictionary];
+            [prefs addEntriesFromDictionary:[NSDictionary dictionaryWithContentsOfFile:@"/var/mobile/Library/Preferences/com.screenshotwatermark.preferences.plist"]];
+            
+            if ([selectedFolder isEqualToString:@"默认水印"]) {
+                [prefs removeObjectForKey:@"watermarkFolder"];
+            } else {
+                [prefs setObject:selectedFolder forKey:@"watermarkFolder"];
+            }
+            
+            [prefs writeToFile:@"/var/mobile/Library/Preferences/com.screenshotwatermark.preferences.plist" atomically:YES];
+            
+            // 通知设置更改
             CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), 
                                                 CFSTR("com.screenshotwatermark.preferences/preferencesChanged"), 
                                                 NULL, NULL, YES);
@@ -270,9 +260,9 @@
 }
 
 // 更新选中的文件夹显示
-- (void)updateSelectedFolderDisplay {
+- (void)updateSelectedFolderDisplay:(NSString *)selectedFolder {
     // 获取当前选中的文件夹名称
-    NSString *displayName = [self getCurrentSelectedFolderName];
+    NSString *displayName = selectedFolder ? selectedFolder : @"默认水印";
     
     // 查找水印文件夹设置项
     PSSpecifier *watermarkSpecifier = [self specifierForID:@"watermarkFolder"];
@@ -293,7 +283,7 @@
     NSDictionary *prefs = [NSDictionary dictionaryWithContentsOfFile:@"/var/mobile/Library/Preferences/com.screenshotwatermark.preferences.plist"];
     NSString *selectedFolder = [prefs objectForKey:@"watermarkFolder"];
     
-    if (!selectedFolder || [selectedFolder isEqualToString:@""]) {
+    if (!selectedFolder || [selectedFolder isEqualToString:@"默认水印"] || [selectedFolder isEqualToString:@""]) {
         return @"默认水印";
     }
     
