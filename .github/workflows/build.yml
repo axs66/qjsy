@@ -1,14 +1,15 @@
 name: CI
 
-# 仅当 build.yml 文件发生变化时触发工作流
+# 触发条件
 on:
   push:
     paths:
-      - '.github/workflows/build.yml'  # 监控 build.yml 文件的变化
-      - 'Tweak.x'  # 增加对 Tweak.xm 文件的监控
-      - 'control' 
+      - '.github/workflows/build.yml'
+      - 'Tweak.x'
+      - 'control'
+      - 'Makefile'  # 添加对 Makefile 的监控
     branches:
-      - 'main'  # 仅在推送到 main 分支时触发
+      - 'main'
   workflow_dispatch:
 
 jobs:
@@ -17,33 +18,51 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           submodules: true
 
-      - name: Use Theos Setup Action
-        uses: axs66/theos-action@main
+      - name: Setup Theos environment
+        uses: kabiroberai/theos-action@v2
+        with:
+          # 可选：指定特定版本的 Theos
+          theos-version: 'latest'
 
       - name: Clean previous packages
-        run: rm -f ${{ github.workspace }}/packages/*.deb
-
-      - name: Build DEB (rootless + roothide)
         run: |
+          mkdir -p packages
+          rm -f packages/*.deb
+
+      - name: Build DEB (rootless)
+        run: |
+          make clean
           make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
+        env:
+          # 确保链接器能找到私有框架
+          LDFLAGS: "-F$THEOS/vendor/include"
+
+      - name: Build DEB (roothide)
+        run: |
+          make clean
           make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=roothide
+        env:
+          # 确保链接器能找到私有框架
+          LDFLAGS: "-F$THEOS/vendor/include"
 
       - name: List generated DEBs
-        run: ls -lh ${{ github.workspace }}/packages
-
-      - name: Create GitHub Release
-        run: |
-          VERSION=$(date +v%Y%m%d%H%M)
-          gh release create $VERSION ${{ github.workspace }}/packages/*.deb --title "全局水印 $VERSION" --notes "自动构建 .deb 安装包"
-        env:
-          GH_TOKEN: ${{ secrets.PAT }}
+        run: ls -lh packages/
 
       - name: Upload DEB to workflow artifacts
-        uses: actions/upload-artifact@v4.3.3
+        uses: actions/upload-artifact@v4
         with:
           name: 全局水印
-          path: ${{ github.workspace }}/packages/*.deb
+          path: packages/*.deb
+
+      - name: Create GitHub Release
+        # 只有当有 .deb 文件生成时才创建发布
+        if: success() && length(files('packages/*.deb')) > 0
+        run: |
+          VERSION=$(date +v%Y%m%d%H%M)
+          gh release create $VERSION packages/*.deb --title "全局水印 $VERSION" --notes "自动构建 .deb 安装包"
+        env:
+          GH_TOKEN: ${{ secrets.PAT }}
