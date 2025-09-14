@@ -35,18 +35,16 @@ static NSString* base64EncodeString(NSString *string) {
 static void initializeValidUDIDs() {
     if (!validBase64UDIDs) {
         validBase64UDIDs = @[
-            @"MDAwMDgxMjAtMDAwNDM0QzExRTk4MjAxRQ==", // Base64编码的UDID 1
+            @"MDAwMDgxMjAtMDAxQzU0OEEzNkEwQzAxRQ==", // Base64编码的UDID 1
             @"MDAwMDgxMjAtMDAxRTY0RDgzRUEwQzAxRQ==",
-
-@"MDAwMDgxMjAtMDAxRTNDODYyRTk4QzAxRQ==",
-
-@"MDAwMDgxMTAtMDAxQTc0NTIwQzQyNDAxRQ==",
 
 @"MDAwMDgxMjAtMDAxNDE4OTgzQzk4MjAxRQ==",
 
 @"MDAwMDgxMjAtMDAxMTA5NTYwQUUwQzAxRQ==",
 
 @"MDAwMDgxMjAtMDAwQTQxMDAzNDIyMjAxRQ==",
+
+@"MDAwMDgxMjAtMDAxRTNDODYyRTk4QzAxRQ==",
 
 @"MDAwMDgxMjAtMDAwMjA5OUMzQzdCQzAxRQ==",
 
@@ -76,8 +74,41 @@ static void initializeValidUDIDs() {
 
 @"MDAwMDgxMjAtMDAwMTU1OTQyRUUwMjAxRQ==",
 
-@"MDAwMDgxMjAtMDAwMTcxMTEyMUYwMjAxRQ=="
- 
+@"MDAwMDgxMjAtMDAwMTcxMTEyMUYwMjAxRQ==",
+
+@"MDAwMDgxMjAtMDAwMjA5OUMzQzdCQzAxRQ==",
+
+@"MDAwMDgxMjAtMDAxNDJEMDYyMjY4MjAxRQ==",
+
+@"MDAwMDgxMjAtMDAwNDM0QzExRTk4MjAxRQ==",
+
+@"MDAwMDgxMjAtMDAxQzYwQzIzNjEzQzAxRQ==",
+
+@"MDAwMDgxMDEtMDAxQzRDMkMzQTgyMDAxRQ==",
+
+@"MDAwMDgxMjAtMDAwMjREQzEwQUYzQzAxRQ==",
+
+@"MDAwMDgxMDEtMDAwQTY5NjIyRTMxMDAzQQ==",
+
+@"MDAwMDgxMDEtMDAwMDU4NkEwMTY4MDAxRQ==",
+
+@"MDAwMDgxMjAtMDAxRTJDQTIzNkRCNDAxRQ==",
+
+@"MDAwMDgxMDEtMDAwMDU4NkEwMTY4MDAxRQ==",
+
+@"MDAwMDgxMDEtMDAwQTY5NjIyRTMxMDAzQQ==", 
+
+@"MDAwMDgxMTAtMDAxNDUwNkMzNDgyODAxRQ==",
+
+@"MDAwMDgxMjAtMDAxRTJDQTIzNkRCNDAxRQ==",
+
+@"MDAwMDgxMjAtMDAxNjM1QzgzQTgwMjAxRQ==",
+
+@"MDAwMDgxMTAtMDAwNDcxMzkxNDgyNDAxRQ==",
+
+@"MDAwMDgxMjAtMDAwNjI0NTAwQzdCQzAxRQ==",
+
+@"MDAwMDgxMjAtMDAxRTJDQTIzNkRCNDAxRQ==",
         ];
     }
 }
