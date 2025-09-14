@@ -26,6 +26,12 @@ jobs:
         with:
           theos-version: 'latest'
 
+      - name: Verify Theos installation
+        run: |
+         echo "THEOS path: $THEOS"
+          ls -la $THEOS
+          $THEOS/bin/nic.pl --version
+
       - name: Clean previous packages
         run: rm -f ${{ github.workspace }}/packages/*.deb
 
