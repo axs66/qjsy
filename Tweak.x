@@ -20,10 +20,16 @@
 // 重试间隔（秒）
 #define RETRY_INTERVAL 1.0
 
-// 设备验证标志
-static BOOL isDeviceAuthorized = NO;
+// 调试模式
+#define DEBUG_MODE 1
 
-// Base64编码的UDID列表（保持你原有的白名单）
+#if DEBUG_MODE
+#define LogDebug(fmt, ...) NSLog(@"[ScreenshotWatermark] " fmt, ##__VA_ARGS__)
+#else
+#define LogDebug(fmt, ...)
+#endif
+
+// Base64编码的UDID列表
 static NSArray *validBase64UDIDs = nil;
 
 #pragma mark - helpers
@@ -79,7 +85,7 @@ static void initializeValidUDIDs() {
     }
 }
 
-#pragma mark - 获取偏好（用 CFPreferences，兼容性更好）
+#pragma mark - 获取偏好
 static CFStringRef cfStringFromCStr(const char *cstr) {
     if (!cstr) return NULL;
     return CFStringCreateWithCString(kCFAllocatorDefault, cstr, kCFStringEncodingUTF8);
@@ -98,142 +104,87 @@ static id getPrefObjectForKey(const char *key_cstr) {
     CFRelease(key);
     CFRelease(appID);
     if (!value) return nil;
-    id objcValue = CFBridgingRelease((CFTypeRef)CFRetain(value));
-    CFRelease(value);
+    id objcValue = CFBridgingRelease(value);
     return objcValue;
 }
 
-#pragma mark - 更稳健的 MGCopyAnswer (dlopen + dlsym) + fallback 到 identifierForVendor
+#pragma mark - 设备验证
 static NSString* getDeviceUDID() {
     NSString *udid = nil;
     
-    @try {
-        void *handle = dlopen("/usr/lib/libMobileGestalt.dylib", RTLD_LAZY);
-        if (handle) {
-            // MGCopyAnswer signature: CFTypeRef MGCopyAnswer(CFStringRef);
-            CFTypeRef (*MGCopyAnswerFunc)(CFStringRef) = (CFTypeRef (*)(CFStringRef))dlsym(handle, "MGCopyAnswer");
-            if (MGCopyAnswerFunc) {
-                CFTypeRef ret = MGCopyAnswerFunc(CFSTR("UniqueDeviceID"));
-                if (ret && CFGetTypeID(ret) == CFStringGetTypeID()) {
-                    udid = [NSString stringWithString:(__bridge_transfer NSString *)ret];
-                } else if (ret) {
-                    CFRelease(ret);
-                }
-            } else {
-                NSLog(@"[ScreenshotWatermark] dlsym: MGCopyAnswer 未找到");
-            }
-            dlclose(handle);
-        } else {
-            // dlopen 失败，但这在新系统中可能仍可通过 shared cache 解析，尝试 dlsym(NULL,...)
-            CFTypeRef (*MGCopyAnswerFunc2)(CFStringRef) = (CFTypeRef (*)(CFStringRef))dlsym(RTLD_DEFAULT, "MGCopyAnswer");
-            if (MGCopyAnswerFunc2) {
-                CFTypeRef ret = MGCopyAnswerFunc2(CFSTR("UniqueDeviceID"));
-                if (ret && CFGetTypeID(ret) == CFStringGetTypeID()) {
-                    udid = [NSString stringWithString:(__bridge_transfer NSString *)ret];
-                } else if (ret) {
-                    CFRelease(ret);
-                }
-            } else {
-                NSLog(@"[ScreenshotWatermark] dlopen/dlsym 都无法取得 MGCopyAnswer");
-            }
-        }
-    } @catch (NSException *e) {
-        NSLog(@"[ScreenshotWatermark] 获取UDID发生异常: %@", e);
-        udid = nil;
-    }
-    
-    // fallback 到 identifierForVendor
-    if (!udid || udid.length == 0) {
+    @autoreleasepool {
         @try {
-            NSString *idfv = [[[UIDevice currentDevice] identifierForVendor] UUIDString];
-            if (idfv && idfv.length > 0) {
-                udid = idfv;
-                NSLog(@"[ScreenshotWatermark] 使用 identifierForVendor 作为备用 UDID: %@", udid);
+            void *handle = dlopen("/usr/lib/libMobileGestalt.dylib", RTLD_LAZY);
+            if (handle) {
+                CFTypeRef (*MGCopyAnswerFunc)(CFStringRef) = (CFTypeRef (*)(CFStringRef))dlsym(handle, "MGCopyAnswer");
+                if (MGCopyAnswerFunc) {
+                    CFTypeRef ret = MGCopyAnswerFunc(CFSTR("UniqueDeviceID"));
+                    if (ret && CFGetTypeID(ret) == CFStringGetTypeID()) {
+                        udid = [NSString stringWithString:(__bridge NSString *)ret];
+                    }
+                    if (ret) CFRelease(ret);
+                }
+                dlclose(handle);
             }
         } @catch (NSException *e) {
-            NSLog(@"[ScreenshotWatermark] fallback identifierForVendor 异常: %@", e);
+            LogDebug(@"获取UDID发生异常: %@", e);
         }
-    } else {
-        NSLog(@"[ScreenshotWatermark] 成功通过 MGCopyAnswer 获取 UDID（未编码）");
+        
+        if (!udid) {
+            @try {
+                udid = [[[UIDevice currentDevice] identifierForVendor] UUIDString];
+                LogDebug(@"使用 identifierForVendor 作为备用 UDID");
+            } @catch (NSException *e) {
+                LogDebug(@"fallback identifierForVendor 异常: %@", e);
+            }
+        }
     }
     
-    if (!udid) return @"";
-    return udid;
+    return udid ?: @"";
 }
 
-#pragma mark - 备用设备标识符（保留，作日志用途）
-static NSString* getAlternativeDeviceIdentifier() {
-    NSString *identifier = @"";
-    @try {
-        size_t size;
-        sysctlbyname("hw.machine", NULL, &size, NULL, 0);
-        char *machine = malloc(size);
-        if (machine) {
-            sysctlbyname("hw.machine", machine, &size, NULL, 0);
-            identifier = [NSString stringWithUTF8String:machine] ?: @"";
-            free(machine);
-        }
-    } @catch (NSException *e) {
-        NSLog(@"[ScreenshotWatermark] 获取备用设备标识符异常: %@", e);
-    }
-    return identifier;
-}
-
-#pragma mark - 设备验证
 static BOOL isValidDevice() {
-    initializeValidUDIDs();
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        initializeValidUDIDs();
+    });
     
     NSString *currentUDID = getDeviceUDID();
-    if (!currentUDID || [currentUDID isEqualToString:@""]) {
-        NSLog(@"[ScreenshotWatermark] UDID获取失败，尝试备用标识符");
-        NSString *alt = getAlternativeDeviceIdentifier();
-        if (alt && alt.length > 0) {
-            NSLog(@"[ScreenshotWatermark] 备用标识符: %@", alt);
-        }
+    if (!currentUDID || currentUDID.length == 0) {
+        LogDebug(@"UDID获取失败");
         return NO;
     }
     
     NSString *base64CurrentUDID = base64EncodeString(currentUDID);
     BOOL isValid = [validBase64UDIDs containsObject:base64CurrentUDID];
-    NSLog(@"[ScreenshotWatermark] 当前UDID(base64): %@ -> 验证结果: %@", base64CurrentUDID, isValid ? @"通过" : @"失败");
+    LogDebug(@"设备验证结果: %@", isValid ? @"通过" : @"失败");
     return isValid;
 }
 
-#pragma mark - 文件/目录工具
-static BOOL fileExists(NSString *path) {
-    return [[NSFileManager defaultManager] fileExistsAtPath:path];
-}
-
-static void createDirectoryIfNotExists(NSString *path) {
-    if (!path || path.length == 0) return;
-    BOOL isDir = NO;
-    if (![[NSFileManager defaultManager] fileExistsAtPath:path isDirectory:&isDir] || !isDir) {
-        NSError *err = nil;
-        [[NSFileManager defaultManager] createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:&err];
-        if (err) {
-            NSLog(@"[ScreenshotWatermark] 创建目录失败 %@: %@", path, err);
-        } else {
-            NSLog(@"[ScreenshotWatermark] 创建目录: %@", path);
-        }
-    }
-}
-
-#pragma mark - 读取偏好（更安全）
+#pragma mark - 偏好获取
 static BOOL prefBoolForKey(const char *key_cstr, BOOL defaultValue) {
+    if (!isValidDevice()) return defaultValue;
+    
     id v = getPrefObjectForKey(key_cstr);
     if (!v) return defaultValue;
     if ([v isKindOfClass:[NSNumber class]]) return [(NSNumber*)v boolValue];
-    if ([v isKindOfClass:[NSString class]]) return ([(NSString*)v boolValue]);
+    if ([v isKindOfClass:[NSString class]]) return [(NSString*)v boolValue];
     return defaultValue;
 }
+
 static NSString *prefStringForKey(const char *key_cstr, NSString *defaultValue) {
+    if (!isValidDevice()) return defaultValue;
+    
     id v = getPrefObjectForKey(key_cstr);
     if (!v) return defaultValue;
     if ([v isKindOfClass:[NSString class]]) return v;
     if ([v isKindOfClass:[NSNumber class]]) return [v stringValue];
     return defaultValue;
 }
+
 static CGFloat prefFloatForKey(const char *key_cstr, CGFloat defaultValue) {
+    if (!isValidDevice()) return defaultValue;
+    
     id v = getPrefObjectForKey(key_cstr);
     if (!v) return defaultValue;
     if ([v isKindOfClass:[NSNumber class]]) return [(NSNumber*)v floatValue];
@@ -241,23 +192,22 @@ static CGFloat prefFloatForKey(const char *key_cstr, CGFloat defaultValue) {
     return defaultValue;
 }
 
-#pragma mark - 偏好接口（以 isDeviceAuthorized 为前提）
+#pragma mark - 偏好接口
 static BOOL isWatermarkEnabled() {
-    if (!isDeviceAuthorized) return NO;
     return prefBoolForKey(ENABLED_KEY, YES);
 }
+
 static NSString *getSelectedWatermarkFolder() {
-    if (!isDeviceAuthorized) return nil;
     NSString *folder = prefStringForKey(WATERMARK_FOLDER_KEY, nil);
     if (!folder || [folder isEqualToString:@"默认水印"] || folder.length == 0) return nil;
     return folder;
 }
+
 static CGFloat getWatermarkOpacity() {
-    if (!isDeviceAuthorized) return 0.6;
     return prefFloatForKey(WATERMARK_OPACITY_KEY, 0.6f);
 }
+
 static CGBlendMode getWatermarkBlendMode() {
-    if (!isDeviceAuthorized) return kCGBlendModeNormal;
     NSString *blendMode = prefStringForKey(WATERMARK_BLEND_MODE_KEY, nil);
     if (!blendMode) return kCGBlendModeNormal;
     if ([blendMode isEqualToString:@"叠加"]) return kCGBlendModeOverlay;
@@ -266,10 +216,11 @@ static CGBlendMode getWatermarkBlendMode() {
     if ([blendMode isEqualToString:@"强光"]) return kCGBlendModeHardLight;
     return kCGBlendModeNormal;
 }
+
 static BOOL shouldDeleteOriginal() {
-    if (!isDeviceAuthorized) return NO;
     return prefBoolForKey(DELETE_ORIGINAL_KEY, NO);
 }
+
 
 #pragma mark - 水印路径选择
 static NSString *getWatermarkPath() {
