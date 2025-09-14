@@ -10,6 +10,8 @@ ScreenshotWatermark_FILES = Tweak.x
 ScreenshotWatermark_CFLAGS = -fobjc-arc
 ScreenshotWatermark_FRAMEWORKS = UIKit Photos AVFoundation CoreMedia MobileCoreServices ReplayKit
 ScreenshotWatermark_EXTRA_FRAMEWORKS = Cephei
+ScreenshotWatermark_PRIVATE_FRAMEWORKS = SpringBoardServices ScreenshotServices
+
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
