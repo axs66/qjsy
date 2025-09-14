@@ -28,7 +28,7 @@ jobs:
 
       - name: Verify Theos installation
         run: |
-         echo "THEOS path: $THEOS"
+          echo "THEOS path: $THEOS"
           ls -la $THEOS
           $THEOS/bin/nic.pl --version
 
