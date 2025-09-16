@@ -1,5 +1,5 @@
 ARCHS = arm64 arm64e
-INSTALL_TARGET_PROCESSES = SpringBoard Preferences
+INSTALL_TARGET_PROCESSES = SpringBoard
 TARGET = iphone:clang:latest:14.5
 THEOS_PACKAGE_SCHEME = rootless
 
@@ -9,7 +9,6 @@ TWEAK_NAME = ScreenshotWatermark
 ScreenshotWatermark_FILES = Tweak.x
 ScreenshotWatermark_CFLAGS = -fobjc-arc
 ScreenshotWatermark_FRAMEWORKS = UIKit Photos AVFoundation CoreMedia MobileCoreServices ReplayKit
-ScreenshotWatermark_PRIVATE_FRAMEWORKS = SpringBoardServices ScreenshotServices
 ScreenshotWatermark_EXTRA_FRAMEWORKS = Cephei
 
 include $(THEOS_MAKE_PATH)/tweak.mk
