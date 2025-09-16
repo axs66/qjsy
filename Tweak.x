@@ -36,79 +36,12 @@ static void initializeValidUDIDs() {
     if (!validBase64UDIDs) {
         validBase64UDIDs = @[
             @"MDAwMDgxMjAtMDAxQzU0OEEzNkEwQzAxRQ==", // Base64编码的UDID 1
-            @"MDAwMDgxMjAtMDAxRTY0RDgzRUEwQzAxRQ==",
-
-@"MDAwMDgxMjAtMDAxNDE4OTgzQzk4MjAxRQ==",
-
-@"MDAwMDgxMjAtMDAxMTA5NTYwQUUwQzAxRQ==",
-
-@"MDAwMDgxMjAtMDAwQTQxMDAzNDIyMjAxRQ==",
+            @"MDAwMDgxMDEtMDAwQTY5NjIyRTMxMDAzQQ==",
+            
+@"MDAwMDgxMjAtMDAxODA4MzQyRUUwMjAxRQ==",
 
 @"MDAwMDgxMjAtMDAxRTNDODYyRTk4QzAxRQ==",
-
-@"MDAwMDgxMjAtMDAwMjA5OUMzQzdCQzAxRQ==",
-
-@"MDAwMDgxMjAtMDAxQzFDMzAxRTY4MjAxRQ==",
-
-@"MDAwMDgxMTAtMDAwODQ5NEEzQ0I5ODAxRQ==",
-
-@"MDAwMDgxMjAtMDAxQzYwQzIzNjEzQzAxRQ==",
-
-@"MDAwMDgxMTAtMDAxQTU4NTAyMjIxODAxRQ==",
-
-@"MDAwMDgxMTAtMDAxQzQ1QTQxNEExNDAxRQ==",
-
-@"MDAwMDgwMzAtMDAwMzU4OTIxNERBNDAyRQ==",
-
-@"MDAwMDgxMjAtMDAxNjE0NjkyMTQ3NDAxRQ==",
-
-@"MDAwMDgxMjAtMDAxQTA5OTQyRTk4MjAxRQ==",
-
-@"MDAwMDgxMDEtMDAxQzRDMkMzQTgyMDAxRQ==",
-
-@"MDAwMDgxMDEtMDAwMDU4NkEwMTY4MDAxRQ==",
-
-@"MDAwMDgxMjAtMDAwMjREQzEwQUYzQzAxRQ==",
-
-@"MDAwMDgxMjAtMDAwQzU1MDYyMjQ0QzAxRQ==",
-
-@"MDAwMDgxMjAtMDAwMTU1OTQyRUUwMjAxRQ==",
-
-@"MDAwMDgxMjAtMDAwMTcxMTEyMUYwMjAxRQ==",
-
-@"MDAwMDgxMjAtMDAwMjA5OUMzQzdCQzAxRQ==",
-
-@"MDAwMDgxMjAtMDAxNDJEMDYyMjY4MjAxRQ==",
-
-@"MDAwMDgxMjAtMDAwNDM0QzExRTk4MjAxRQ==",
-
-@"MDAwMDgxMjAtMDAxQzYwQzIzNjEzQzAxRQ==",
-
-@"MDAwMDgxMDEtMDAxQzRDMkMzQTgyMDAxRQ==",
-
-@"MDAwMDgxMjAtMDAwMjREQzEwQUYzQzAxRQ==",
-
-@"MDAwMDgxMDEtMDAwQTY5NjIyRTMxMDAzQQ==",
-
-@"MDAwMDgxMDEtMDAwMDU4NkEwMTY4MDAxRQ==",
-
-@"MDAwMDgxMjAtMDAxRTJDQTIzNkRCNDAxRQ==",
-
-@"MDAwMDgxMDEtMDAwMDU4NkEwMTY4MDAxRQ==",
-
-@"MDAwMDgxMDEtMDAwQTY5NjIyRTMxMDAzQQ==", 
-
-@"MDAwMDgxMTAtMDAxNDUwNkMzNDgyODAxRQ==",
-
-@"MDAwMDgxMjAtMDAxRTJDQTIzNkRCNDAxRQ==",
-
-@"MDAwMDgxMjAtMDAxNjM1QzgzQTgwMjAxRQ==",
-
-@"MDAwMDgxMTAtMDAwNDcxMzkxNDgyNDAxRQ==",
-
-@"MDAwMDgxMjAtMDAwNjI0NTAwQzdCQzAxRQ==",
-
-@"MDAwMDgxMjAtMDAxRTJDQTIzNkRCNDAxRQ==",
+// 更多UDID...
         ];
     }
 }
@@ -289,8 +222,8 @@ static BOOL shouldDeleteOriginal() {
     return prefs ? [[prefs objectForKey:@DELETE_ORIGINAL_KEY] boolValue] : NO;
 }
 
-// 获取水印图片路径
-static NSString *getWatermarkPath() {
+// 获取水印图片路径（基于图片方向）
+static NSString *getWatermarkPathForImage(UIImage *image) {
     // 只有设备已授权时才获取水印路径
     if (!isDeviceAuthorized) return @"";
     
@@ -299,14 +232,31 @@ static NSString *getWatermarkPath() {
     
     createDirectoryIfNotExists(syBasePath);
     
+    // 根据图片尺寸判断方向
+    BOOL isLandscape = image.size.width > image.size.height;
+    
+    // 根据方向选择水印文件名
+    NSString *portraitFilename = @"水印.png";
+    NSString *landscapeFilename = @"水印横屏.png";
+    NSString *targetFilename = isLandscape ? landscapeFilename : portraitFilename;
+    
+    NSLog(@"[ScreenshotWatermark] 图片方向: %@, 使用水印文件: %@", 
+          isLandscape ? @"横屏" : @"竖屏", targetFilename);
+    
     if (selectedFolder) {
         NSString *selectedPath = [syBasePath stringByAppendingPathComponent:selectedFolder];
-        NSString *watermarkPath = [selectedPath stringByAppendingPathComponent:@"水印.png"];
+        NSString *watermarkPath = [selectedPath stringByAppendingPathComponent:targetFilename];
         
         if (fileExists(watermarkPath)) {
             NSLog(@"[ScreenshotWatermark] 使用用户选择的水印文件夹: %@", selectedFolder);
             return watermarkPath;
         } else {
+            // 如果方向特定的水印不存在，尝试使用默认水印
+            NSString *defaultWatermarkPath = [selectedPath stringByAppendingPathComponent:portraitFilename];
+            if (fileExists(defaultWatermarkPath)) {
+                NSLog(@"[ScreenshotWatermark] 方向特定水印不存在，使用默认水印: %@", portraitFilename);
+                return defaultWatermarkPath;
+            }
             NSLog(@"[ScreenshotWatermark] 用户选择的水印文件夹中没有找到水印图片: %@", selectedFolder);
         }
     }
@@ -316,12 +266,12 @@ static NSString *getWatermarkPath() {
     
     if (error) {
         NSLog(@"[ScreenshotWatermark] 读取SY目录失败: %@", error);
-        return @"/var/mobile/SY/水印.png";
+        return [syBasePath stringByAppendingPathComponent:targetFilename];
     }
     
     for (NSString *subdir in subdirectories) {
         NSString *fullPath = [syBasePath stringByAppendingPathComponent:subdir];
-        NSString *watermarkPath = [fullPath stringByAppendingPathComponent:@"水印.png"];
+        NSString *watermarkPath = [fullPath stringByAppendingPathComponent:targetFilename];
         
         BOOL isDirectory;
         if ([[NSFileManager defaultManager] fileExistsAtPath:fullPath isDirectory:&isDirectory] && 
@@ -329,13 +279,29 @@ static NSString *getWatermarkPath() {
             fileExists(watermarkPath)) {
             NSLog(@"[ScreenshotWatermark] 找到水印图片在文件夹: %@", subdir);
             return watermarkPath;
+        } else {
+            // 如果方向特定的水印不存在，尝试使用默认水印
+            NSString *defaultWatermarkPath = [fullPath stringByAppendingPathComponent:portraitFilename];
+            if ([[NSFileManager defaultManager] fileExistsAtPath:fullPath isDirectory:&isDirectory] && 
+                isDirectory && 
+                fileExists(defaultWatermarkPath)) {
+                NSLog(@"[ScreenshotWatermark] 方向特定水印不存在，使用默认水印: %@", portraitFilename);
+                return defaultWatermarkPath;
+            }
         }
     }
     
-    NSString *rootWatermarkPath = [syBasePath stringByAppendingPathComponent:@"水印.png"];
+    NSString *rootWatermarkPath = [syBasePath stringByAppendingPathComponent:targetFilename];
     if (fileExists(rootWatermarkPath)) {
         NSLog(@"[ScreenshotWatermark] 使用根目录水印图片");
         return rootWatermarkPath;
+    } else {
+        // 如果方向特定的水印不存在，尝试使用默认水印
+        NSString *defaultRootWatermarkPath = [syBasePath stringByAppendingPathComponent:portraitFilename];
+        if (fileExists(defaultRootWatermarkPath)) {
+            NSLog(@"[ScreenshotWatermark] 方向特定水印不存在，使用默认水印: %@", portraitFilename);
+            return defaultRootWatermarkPath;
+        }
     }
     
     NSString *oldPath = @"/var/mobile/sy/水印.png";
@@ -345,7 +311,7 @@ static NSString *getWatermarkPath() {
     }
     
     NSLog(@"[ScreenshotWatermark] 未找到水印图片，使用默认路径");
-    return rootWatermarkPath;
+    return [syBasePath stringByAppendingPathComponent:portraitFilename];
 }
 
 // 防止重复处理的标志
@@ -362,7 +328,7 @@ static UIImage *addWatermarkToImage(UIImage *originalImage) {
     
     NSLog(@"[ScreenshotWatermark] 开始添加全屏覆盖水印到图片");
     
-    NSString *watermarkPath = getWatermarkPath();
+    NSString *watermarkPath = getWatermarkPathForImage(originalImage);
     
     if (!fileExists(watermarkPath)) {
         NSLog(@"[ScreenshotWatermark] 错误: 水印图片不存在于路径: %@", watermarkPath);
@@ -706,6 +672,42 @@ static void preferencesChanged(CFNotificationCenterRef center, void *observer, C
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         addWatermarkToLatestScreenshot();
     });
+}
+
+// iOS 13+ 的截图方法
+- (void)_handlePhysicalButtonEvent:(id)event {
+    %orig;
+    
+    // 检查是否是截图组合键
+    BOOL isScreenshot = NO;
+    
+    // 尝试获取事件类型
+    @try {
+        NSInteger eventType = [[event valueForKey:@"type"] integerValue];
+        NSInteger usagePage = [[event valueForKey:@"usagePage"] integerValue];
+        NSInteger usage = [[event valueForKey:@"usage"] integerValue];
+        
+        NSLog(@"[ScreenshotWatermark] 物理按钮事件: type=%ld, usagePage=%ld, usage=%ld", 
+                      (long)eventType, (long)usagePage, (long)usage);
+        
+        // 检查是否是电源键+音量上键或Home键（截图组合）
+        if (eventType == 1 && usagePage == 1) {
+            if (usage == 1 || usage == 207) { // 电源键或音量上键
+                isScreenshot = YES;
+            }
+        }
+    } @catch (NSException *exception) {
+        NSLog(@"[ScreenshotWatermark] 获取事件信息失败: %@", exception);
+    }
+    
+    if (isScreenshot) {
+        NSLog(@"[ScreenshotWatermark] 检测到截图组合键");
+        
+        // 延迟处理，确保截图已保存到相册
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            addWatermarkToLatestScreenshot();
+        });
+    }
 }
 
 %end
