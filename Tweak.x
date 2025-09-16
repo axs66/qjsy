@@ -35,13 +35,10 @@ static NSString* base64EncodeString(NSString *string) {
 static void initializeValidUDIDs() {
     if (!validBase64UDIDs) {
         validBase64UDIDs = @[
-            @"MDAwMDgxMjAtMDAxQzU0OEEzNkEwQzAxRQ==", // Base64编码的UDID 1
+            @"MDAwMDgxMjAtMDAxRTNDODYyRTk4QzAxRQ==", // Base64编码的UDID
+            @"MDAwMDgxMjAtMDAxQzU0OEEzNkEwQzAxRQ==",
             @"MDAwMDgxMDEtMDAwQTY5NjIyRTMxMDAzQQ==",
-            
-@"MDAwMDgxMjAtMDAxODA4MzQyRUUwMjAxRQ==",
-
-@"MDAwMDgxMjAtMDAxRTNDODYyRTk4QzAxRQ==",
-// 更多UDID...
+            @"MDAwMDgxMjAtMDAxODA4MzQyRUUwMjAxRQ=="
         ];
     }
 }
