@@ -1,7 +1,7 @@
 ARCHS = arm64 arm64e
 INSTALL_TARGET_PROCESSES = SpringBoard
+TARGET = iphone:clang:latest:14.5
 THEOS_PACKAGE_SCHEME = rootless
-TARGET := iphone:clang:latest:14.5
 
 include $(THEOS)/makefiles/common.mk
 
@@ -13,6 +13,5 @@ ScreenshotWatermark_EXTRA_FRAMEWORKS = Cephei
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
-# PreferenceBundle 子项目
 SUBPROJECTS += ScreenshotWatermarkPrefs
 include $(THEOS_MAKE_PATH)/aggregate.mk
