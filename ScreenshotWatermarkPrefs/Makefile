@@ -1,6 +1,6 @@
 ARCHS = arm64 arm64e
-TARGET = iphone:clang:latest:14.0        # 和主 Makefile 保持一致
-INSTALL_TARGET_PROCESSES = Preferences   # 对 Preference Bundle 可保留
+TARGET = iphone:clang:latest:14.0      # 和主 Makefile 保持一致
+INSTALL_TARGET_PROCESSES = Preferences
 BUNDLE_NAME = ScreenshotWatermarkPrefs
 
 ScreenshotWatermarkPrefs_FILES = SWPRootListController.m
