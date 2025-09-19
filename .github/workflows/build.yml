@@ -1,13 +1,14 @@
-name: deb
+name: CI
 
+# 仅当 build.yml 文件发生变化时触发工作流
 on:
   push:
     paths:
-      - '.github/workflows/build.yml'
-      - '**.xm'
-      - 'control'
+      - '.github/workflows/build.yml'  # 监控 build.yml 文件的变化
+      - 'Tweak.x'  # 增加对 Tweak.xm 文件的监控
+      - 'control' 
     branches:
-      - 'main'
+      - 'main'  # 仅在推送到 main 分支时触发
   workflow_dispatch:
 
 jobs:
@@ -15,36 +16,34 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
         with:
           submodules: true
 
-      - name: Clean previous Theos
-        run: rm -rf $HOME/theos
-
-      - name: Prepare Theos
+      - name: Use Theos Setup Action
         uses: axs66/theos-action@main
 
-      - name: Build package (rootless, roothide, root)
-        run: |
-          mkdir -p ${{ github.workspace }}/packages
-          rm -f ${{ github.workspace }}/packages/*.deb
-          for scheme in rootless roothide root; do
-            make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=$scheme
-          done
+      - name: Clean previous packages
+        run: rm -f ${{ github.workspace }}/packages/*.deb
 
-      - name: List generated Deb packages
-        run: ls ${{ github.workspace }}/packages
+      - name: Build DEB (rootless + roothide)
+        run: |
+          make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
+          make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=roothide
+          make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=root
+
+      - name: List generated DEBs
+        run: ls -lh ${{ github.workspace }}/packages
 
       - name: Create GitHub Release
-        id: release
         run: |
           VERSION=$(date +v%Y%m%d%H%M)
-          gh release create $VERSION ${{ github.workspace }}/packages/*.deb --title "全局水印 $VERSION" --notes "Automated release of .deb files"
+          gh release create $VERSION ${{ github.workspace }}/packages/*.deb --title "全局水印 $VERSION" --notes "自动构建 .deb 安装包"
         env:
           GH_TOKEN: ${{ secrets.PAT }}
 
-      - name: Upload Deb packages as artifact
+      - name: Upload DEB to workflow artifacts
         uses: actions/upload-artifact@v4.3.3
         with:
           name: 全局水印
