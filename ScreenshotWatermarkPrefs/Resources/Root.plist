@@ -29,6 +29,20 @@
             <key>cell</key>
             <string>PSSwitchCell</string>
             <key>default</key>
+            <true/>
+            <key>defaults</key>
+            <string>com.screenshotwatermark.preferences</string>
+            <key>key</key>
+            <string>frameEnabled</string>
+            <key>label</key>
+            <string>启用套壳功能</string>
+            <key>PostNotification</key>
+            <string>com.screenshotwatermark.preferences/preferencesChanged</string>
+        </dict>
+        <dict>
+            <key>cell</key>
+            <string>PSSwitchCell</string>
+            <key>default</key>
             <false/>
             <key>defaults</key>
             <string>com.screenshotwatermark.preferences</string>
@@ -39,9 +53,17 @@
             <key>PostNotification</key>
             <string>com.screenshotwatermark.preferences/preferencesChanged</string>
         </dict>
+        
+        <!-- 水印设置卡片 -->
         <dict>
             <key>cell</key>
-            <string>PSLinkListCell</string>
+            <string>PSGroupCell</string>
+            <key>label</key>
+            <string>水印设置</string>
+        </dict>
+        <dict>
+            <key>cell</key>
+            <string>PSLinkCell</string>
             <key>default</key>
             <string>默认水印</string>
             <key>defaults</key>
@@ -64,12 +86,38 @@
             <string>com.screenshotwatermark.preferences/preferencesChanged</string>
         </dict>
         
-        <!-- 透明度设置卡片 -->
+        <!-- 套壳设置卡片 -->
+        <dict>
+            <key>cell</key>
+            <string>PSLinkCell</string>
+            <key>default</key>
+            <string>默认套壳</string>
+            <key>defaults</key>
+            <string>com.screenshotwatermark.preferences</string>
+            <key>key</key>
+            <string>frameFolder</string>
+            <key>label</key>
+            <string>选择套壳模板</string>
+            <key>id</key>
+            <string>frameFolder</string>
+            <key>validTitles</key>
+            <array>
+                <string>默认套壳</string>
+            </array>
+            <key>validValues</key>
+            <array>
+                <string>默认套壳</string>
+            </array>
+            <key>PostNotification</key>
+            <string>com.screenshotwatermark.preferences/preferencesChanged</string>
+        </dict>
+        
+        <!-- 水印透明度卡片 -->
         <dict>
             <key>cell</key>
             <string>PSGroupCell</string>
             <key>label</key>
-            <string>水印透明度设置</string>
+            <string>水印透明度</string>
         </dict>
         <dict>
             <key>cell</key>
@@ -81,7 +129,7 @@
             <key>key</key>
             <string>watermarkOpacity</string>
             <key>label</key>
-            <string>透明度</string>
+            <string>透明度调节</string>
             <key>max</key>
             <real>1</real>
             <key>min</key>
@@ -92,12 +140,12 @@
             <string>com.screenshotwatermark.preferences/preferencesChanged</string>
         </dict>
         
-        <!-- 混合模式设置卡片 -->
+        <!-- 水印叠加设置卡片 -->
         <dict>
             <key>cell</key>
             <string>PSGroupCell</string>
             <key>label</key>
-            <string>水印模式</string>
+            <string>水印叠加设置</string>
         </dict>
         <dict>
             <key>cell</key>
@@ -139,7 +187,9 @@
             <key>footerText</key>
             <string>水印文件夹路径: /var/mobile/SY/
 
-在SY文件夹下创建任意名称的文件夹，将水印图片命名为"水印.png"放入其中。
+1:水印图片路径，在SY文件夹下创建任意名称的文件夹，将水印图片命名为"水印.png"放入其中。
+2:套壳模板路径，在SY文件夹下创建任意名称的文件夹，将套壳图片和配置文件命名为"tk.png"和tk.cfg放入同一文件夹中，截图时将自动添加套壳效果。
+以上可多创建多个文件夹放置素材
 </string>
         </dict>
         
@@ -154,6 +204,6 @@
         </dict>
     </array>
     <key>title</key>
-    <string>截图水印</string>
+    <string>截图水印&amp;套壳</string>
 </dict>
 </plist>
