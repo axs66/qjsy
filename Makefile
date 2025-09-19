@@ -1,7 +1,7 @@
 # 支持通过环境变量切换包类型，默认 rootless
 THEOS_PACKAGE_SCHEME ?= rootless
 
-ARCHS = arm arm64 arm64e
+ARCHS = arm64 arm64e
 INSTALL_TARGET_PROCESSES = SpringBoard
 TARGET = iphone:clang:latest:14.5
 
