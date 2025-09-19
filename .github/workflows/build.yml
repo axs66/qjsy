@@ -3,11 +3,11 @@ name: deb
 on:
   push:
     paths:
-      - '.github/workflows/build.yml'  # 监控 build.yml 文件的变化
-      - '**.xm'  # 增加对 Tweak.xm 文件的监控
+      - '.github/workflows/build.yml'
+      - '**.xm'
       - 'control'
     branches:
-      - 'main'  # 仅在推送到 main 分支时触发
+      - 'main'
   workflow_dispatch:
 
 jobs:
@@ -19,15 +19,19 @@ jobs:
         with:
           submodules: true
 
+      - name: Clean previous Theos
+        run: rm -rf $HOME/theos
+
       - name: Prepare Theos
         uses: axs66/theos-action@main
 
-      - name: Build package
+      - name: Build package (rootless, roothide, root)
         run: |
+          mkdir -p ${{ github.workspace }}/packages
           rm -f ${{ github.workspace }}/packages/*.deb
-          make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
-          make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=roothide
-          make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=root
+          for scheme in rootless roothide root; do
+            make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=$scheme
+          done
 
       - name: List generated Deb packages
         run: ls ${{ github.workspace }}/packages
@@ -38,9 +42,9 @@ jobs:
           VERSION=$(date +v%Y%m%d%H%M)
           gh release create $VERSION ${{ github.workspace }}/packages/*.deb --title "全局水印 $VERSION" --notes "Automated release of .deb files"
         env:
-          GH_TOKEN: ${{ secrets.PAT }}  # 这里设置了 GitHub Token 用于授权
+          GH_TOKEN: ${{ secrets.PAT }}
 
-      - name: Upload specific Deb packages
+      - name: Upload Deb packages as artifact
         uses: actions/upload-artifact@v4.3.3
         with:
           name: 全局水印
