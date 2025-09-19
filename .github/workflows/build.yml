@@ -24,6 +24,14 @@ jobs:
       - name: Use Theos Setup Action
         uses: axs66/theos-action@main
 
+      - name: Setup Theos SDK
+        run: |
+          mkdir -p $HOME/theos/sdks
+          cd $HOME/theos/sdks
+          wget https://github.com/theos/sdks/raw/master/iPhoneOS14.5.sdk.tar.xz
+          tar -xf iPhoneOS14.5.sdk.tar.xz
+
+
       - name: Clean previous packages
         run: rm -f ${{ github.workspace }}/packages/*.deb
 
