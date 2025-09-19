@@ -3,9 +3,9 @@ THEOS_PACKAGE_SCHEME ?= rootless
 
 # 架构设置
 # 默认只用 64 位，避免 iOS 14.5 32 位报错
-# ARCHS = arm64 arm64e
+ARCHS = arm64 arm64e
 # 如果需要支持 32 位，可启用：
-ARCHS = arm arm64 arm64e
+# ARCHS = arm arm64 arm64e
 
 INSTALL_TARGET_PROCESSES = SpringBoard
 TARGET = iphone:clang:latest:14.5
@@ -17,11 +17,6 @@ ScreenshotWatermark_FILES = Tweak.x
 ScreenshotWatermark_CFLAGS = -fobjc-arc
 ScreenshotWatermark_FRAMEWORKS = UIKit Photos AVFoundation CoreMedia MobileCoreServices ReplayKit
 ScreenshotWatermark_EXTRA_FRAMEWORKS = Cephei
-
-# 针对 32 位架构单独指定最低 iOS 版本（仅在启用 arm 时有效）
-TWEAK_CFLAGS_arm = -mios-version-min=10.0
-TWEAK_CFLAGS_arm64 = -mios-version-min=14.5
-TWEAK_CFLAGS_arm64e = -mios-version-min=14.5
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
