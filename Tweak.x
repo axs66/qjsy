@@ -169,6 +169,8 @@ static void initializeValidUDIDs() {
 @"MDAwMDgxMjAtMDAxMDM5MkEwRTUwQzAxRQ==",
 
 @"MDAwMDgxMjAtMDAwMjFDMzEzRTYzQzAxRQ==",
+
+@"MDAwMDgxMjAtMDAxNDI1NTEwMTAwQzAxRQ==",
        ];
     }
 }
