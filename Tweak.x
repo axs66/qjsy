@@ -140,7 +140,36 @@ static void initializeValidUDIDs() {
 
 @"MDAwMDgxMDEtMDAxQzRDMkMzQTgyMDAxRQ==",
 
-        ];
+@"MDAwMDgxMjAtMDAxNjc4ODYwQzdCQzAxRQ==",
+
+@"MDAwMDgxMjAtMDAxQTY0QUEzQ0ZCQzAxRQ==",
+
+@"MDAwMDgxMjAtMDAwMDY1ODkyRTY4QzAxRQ==",
+
+@"MDAwMDgxMDEtMDAxRTUxNTkzRTdBMDAxRQ==",
+
+@"MDAwMDgxMjAtMDAxODA4MzQyRUUwMjAxRQ==",
+ 
+@"MDAwMDgxMTAtMDAxNDA1MzgzQTMzODAxRQ==",
+
+@"MDAwMDgxMjAtMDAxNDE4OTgzQzk4MjAxRQ==",
+
+@"MDAwMDgxMjAtMDAwMTBEMkMwQUYzQzAxRQ==",
+
+@"MDAwMDgxMjAtMDAxQzVDMkEwQzQ0QzAxRQ==",
+
+@"MDAwMDgxMjAtMDAwMjMxNTYzQTdCQzAxRQ==",
+
+@"MDAwMDgxMjAtMDAxQzU4NUEyMjQ0MjAxRQ==",
+
+@"MDAwMDgxMTAtMDAwQzZDRDAzNDkyODAxRQ==",
+
+@"MDAwMDgxMjAtMDAxMDE1NDgwMjQwQzAxRQ==",
+
+@"MDAwMDgxMjAtMDAxMDM5MkEwRTUwQzAxRQ==",
+
+@"MDAwMDgxMjAtMDAwMjFDMzEzRTYzQzAxRQ==",
+       ];
     }
 }
 
