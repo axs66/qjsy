@@ -7,3 +7,5 @@ Maintainer: junzai
 Author: junzai
 Section: Tweaks
 Depends: mobilesubstrate (>= 0.9.5000), preferenceloader
+Icon: https://axs66.github.io/repo/icon/screenshotwatermark.png
+Sileodepiction: https://axs66.github.io/repo/sileodepiction/screenshotwatermark/js.json
